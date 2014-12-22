@@ -1,0 +1,35 @@
+#!/bin/bash
+
+. $csc/scripts/cs-common
+
+function usage() {
+  echo "print-graph { c: | e: }<run-dir>"
+}
+
+check_help $1 usage
+
+while getopts "l" option
+do
+  case $option in
+    l ) logfile=$OPTARG;;
+    * ) usage; exit;;
+  esac
+done
+shift $(( $OPTIND - 1 ))
+
+append_classpath "CROWD_SAFE_COMMON_DIR"
+
+main_class="edu.uci.eecs.crowdsafe.common.main.GraphSummaryPrinter"
+
+run_dir=$1
+
+[ -z $run_dir ] && usage && exit
+
+[ -z $logfile ] && logfile="print.log"
+echo "Logging to "$logfile
+
+output_file=$run_dir"/graph-summary.log"
+
+#echo "java -cp $cp $main_class $@"
+java -cp $cp $main_class -o $output_file c:$run_dir &> $logfile
+

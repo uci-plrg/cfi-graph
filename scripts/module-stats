@@ -1,0 +1,33 @@
+#!/bin/bash
+
+. $csc/scripts/cs-common
+
+function usage() {
+  echo "module-stats <base-dir>"
+}
+
+check_help $1 usage
+
+target=$1
+[ -z $target ] && target=$(pwd)
+
+temp_log="./instance.log"
+agg_log="./all-modules.log"
+max_log="./max-modules.log"
+
+rm -f $agg_log $max_log
+
+for f in $(find $target -name '*.module.*.log' -type 'f')
+do
+  awk -F"[ :]" '{print tolower($4)}' $f | grep -v "\.exe$" | \
+    grep -v "^dynamorio.dll" | sort | uniq > $temp_log
+
+  wc -l $temp_log | awk -F" " '{print $1 " '$(basename $f)'"}' >> $max_log
+
+  comm -2 -3 $temp_log $agg_log >> $agg_log
+  sort $agg_log | uniq > $temp_log
+  mv $temp_log $agg_log
+done
+
+sort -rn $max_log -o $max_log
+

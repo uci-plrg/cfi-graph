@@ -1,0 +1,52 @@
+#!/bin/bash
+
+. $csc/scripts/cs-common
+
+function usage() {
+  echo "generate-monitor-dataset -o [ <output-dir> | <output-file> ] [ -l <log-file> ] [ -a <alarm-config> ] <cluster-graph-dir>"
+  echo "generate-monitor-dataset -q <dataset-id>"
+}
+
+check_help $1 usage
+
+while getopts ":l:o:q:a:" option
+do
+  case $option in
+    l ) logfile=$OPTARG;;
+    o ) output_file=$OPTARG;;
+    q ) quick=$OPTARG;;
+    a ) alarm_config_option="-a "$OPTARG;;
+    * ) echo "Unrecognized option -"$OPTARG; usage; exit;;
+  esac
+done
+shift $(( $OPTIND - 1 ))
+
+append_classpath "CROWD_SAFE_COMMON_DIR"
+
+main_class="edu.uci.eecs.crowdsafe.common.main.MonitorDataTransformer"
+
+graph_dir=$1
+
+if [ ! -z "$quick" ]
+then
+  output_file=/stash/experiments/monitor/$(basename $(pwd))".monitor.dat"
+  graph_dir="dataset."$quick
+  echo "Quick transform "$graph_dir" into "$output_file
+fi
+
+[ -z $graph_dir ] && echo "Please specify the dataset directory." && usage && exit
+[ -z $output_file ] && usage && exit
+
+[ -z $logfile ] && logfile="monitor-dataset.log"
+echo "Logging to "$logfile
+
+[ -d $output_file ] && output_file=${output_file%/}"/"$(basename $graph_dir)".monitor.dat"
+
+echo "Transforming graph '"$graph_dir"' into '"$output_file"'"
+
+#echo "java -cp $cp $main_class $@"
+java -Xms512M -Xmx2048M -cp $cp $main_class -o $output_file $alarm_config_option $graph_dir &> $logfile
+
+concatenate_script=$(dirname $output_file)/concatenate
+$concatenate_script
+

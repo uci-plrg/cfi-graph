@@ -1,0 +1,125 @@
+package crowd_safe_data_analysis;
+
+option java_package = "edu.uci.eecs.crowdsafe.common.data.results";
+option java_outer_classname = "Graph";
+
+message Process {
+  optional int32 id = 1;
+  optional string name = 2;
+  repeated Cluster cluster = 3;
+  optional ProcessMetadata metadata = 4;
+}
+
+message Cluster {
+  optional string distribution_name = 1;
+  optional int32 node_count = 2;
+  optional int32 executable_node_count = 3;
+  optional int32 entry_point_count = 4;
+  optional int32 callback_entry_count = 9;
+  repeated ModuleInstance module = 5;
+  repeated UnreachableNode unreachable = 6;
+  repeated EdgeTypeCount intra_module_edge_count = 7;
+  repeated EdgeTypeCount inter_module_edge_count = 8;
+  optional ModuleMetadata metadata = 10;
+}
+
+message Module {
+  optional string name = 1;
+  optional string version = 2;
+}
+
+message ModuleInstance {
+  optional Module module = 1;
+  optional int32 node_count = 2;
+  optional ModuleMetadata metadata = 3;
+}
+
+message Node {
+  optional Module module = 1;
+  optional int32 relative_tag = 2;
+  optional int32 tag_version = 3;
+  optional int64 hashcode = 4;
+}
+
+message Edge {
+  optional Node from_node = 1;
+  optional Node to_node = 2;
+  optional EdgeType type = 3;
+}
+
+enum EdgeType {
+  INDIRECT = 0;
+  DIRECT = 1;
+  CALL_CONTINUATION = 2;
+  EXCEPTION_CONTINUATION = 3;
+  UNEXPECTED_RETURN = 4;
+  GENCODE_PERM = 5;
+  GENCODE_WRITE = 6;
+}
+
+message UnreachableNode {
+  optional Node node = 1;
+  repeated Edge missed_incoming_edge = 2;
+  optional bool is_entry_point = 3;
+}
+
+message EdgeTypeCount {
+  optional EdgeType type = 1;
+  optional int32 count = 2;
+}
+
+enum EvaluationType {
+	UIB_TOTAL = 0;
+	UIB_ADMITTED = 1;
+	UIB_SUSPICIOUS = 2;
+}
+
+message UIBObservation {
+	optional EvaluationType type = 1;
+	optional int32 instance_count = 2;
+	optional int32 traversal_count = 3;
+}
+
+message SuspiciousGencodeEntry {
+  optional int32 uib_count = 1;
+  optional int32 suib_count = 2;
+}
+
+message ModuleMetadata {
+  optional int64 sequence_id_low = 1;
+  optional int64 sequence_id_high = 2;
+	optional int64 execution_id_low = 3;
+	optional int64 execution_id_high = 4;
+  optional int32 execution_index = 5;
+	repeated UIBObservation total_observed = 6;
+	repeated UIBObservation intra_module_observed = 7;
+	repeated UIBObservation inter_module_observed = 8;
+  repeated SuspiciousGencodeEntry gencode_entries = 9;
+}
+
+message Interval {
+	optional int32 span = 1;
+	optional int32 occurrences = 2;
+	optional int32 max_consecutive = 3;
+}
+
+message IntervalGroup {
+	optional EvaluationType type = 1;
+	repeated Interval interval = 2;
+}
+
+message SuspiciousSyscall {
+  optional int32 sysnum = 1;
+  optional int32 uib_count = 2;
+  optional int32 suib_count = 3;
+}
+
+message ProcessMetadata {
+	optional int64 sequence_id_low = 1;
+	optional int64 sequence_id_high = 2;
+	optional int64 execution_id_low = 3;
+	optional int64 execution_id_high = 4;
+  optional int32 execution_index = 5;
+	repeated IntervalGroup interval_group = 6;
+  repeated SuspiciousSyscall syscalls = 7;
+}

@@ -1,0 +1,60 @@
+#!/bin/bash
+
+. $csc/scripts/cs-common
+
+function usage() {
+  echo "transform-graphs [ -l <log-file> ]"
+  echo "\t-o <output-base-dir> <run-dir> [ <run-dir> ... ]"
+}
+
+check_help $1 usage
+
+while getopts "l:o:q:" option
+do
+  case $option in
+    o ) output_basedir=$OPTARG;;
+    l ) log_file=$OPTARG;;
+    q ) quick=$OPTARG;;
+    * ) usage; exit;;
+  esac
+done
+shift $((OPTIND-1))
+
+if [ ! -z $quick ]
+then
+  output_basedir="cluster"
+  input_files=$(basename $(pwd)).$quick/*
+  echo "Quick transform: $(basename $(pwd)).$quick/* to cluster"
+else
+  input_files=$@
+fi
+
+local_dir=$(pwd)
+[ -z "$log_file" ] && log_file="transform-graphs.log"
+
+for f in $input_files
+do
+  if [ ! -z $output_basedir ] 
+  then
+    output_dir=$output_basedir/${f/$local_dir}
+    mkdir -p $output_dir
+    
+    if [ -z "$log_file" ] 
+    then
+      log_option="-l "${output_dir%/}"/"$log_file
+    else
+      log_option="-l "$log_file
+    fi
+
+    rm -f $output_dir/*
+    output_option="-o "$output_dir
+    input="-i "$f
+    log_option="-l "$output_dir"/"$log_file
+  else
+    input=$f
+    log_option="-l "$log_file
+  fi
+
+  transform-graph $log_option $input $output_option
+done
+
