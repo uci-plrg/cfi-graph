@@ -1,6 +1,6 @@
 package crowd_safe_data_analysis;
 
-option java_package = "edu.uci.eecs.crowdsafe.common.data.results";
+option java_package = "edu.uci.eecs.crowdsafe.graph.data.results";
 option java_outer_classname = "Graph";
 
 message Process {

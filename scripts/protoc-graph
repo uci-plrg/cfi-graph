@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cd $csg/..
+protoc --proto_path=crowd-safe-graph/protos --java_out=crowd-safe-graph/src crowd-safe-graph/protos/graph.proto

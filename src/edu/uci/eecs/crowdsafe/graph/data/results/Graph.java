@@ -686,7 +686,7 @@ public final class Graph {
                 edu.uci.eecs.crowdsafe.graph.data.results.Graph.Process.class, edu.uci.eecs.crowdsafe.graph.data.results.Graph.Process.Builder.class);
       }
 
-      // Construct using edu.uci.eecs.crowdsafe.common.data.results.Graph.Process.newBuilder()
+      // Construct using edu.uci.eecs.crowdsafe.graph.data.results.Graph.Process.newBuilder()
       private Builder() {
         maybeForceBuilderInitialization();
       }
@@ -2149,7 +2149,7 @@ public final class Graph {
                 edu.uci.eecs.crowdsafe.graph.data.results.Graph.Cluster.class, edu.uci.eecs.crowdsafe.graph.data.results.Graph.Cluster.Builder.class);
       }
 
-      // Construct using edu.uci.eecs.crowdsafe.common.data.results.Graph.Cluster.newBuilder()
+      // Construct using edu.uci.eecs.crowdsafe.graph.data.results.Graph.Cluster.newBuilder()
       private Builder() {
         maybeForceBuilderInitialization();
       }
@@ -4122,7 +4122,7 @@ public final class Graph {
                 edu.uci.eecs.crowdsafe.graph.data.results.Graph.Module.class, edu.uci.eecs.crowdsafe.graph.data.results.Graph.Module.Builder.class);
       }
 
-      // Construct using edu.uci.eecs.crowdsafe.common.data.results.Graph.Module.newBuilder()
+      // Construct using edu.uci.eecs.crowdsafe.graph.data.results.Graph.Module.newBuilder()
       private Builder() {
         maybeForceBuilderInitialization();
       }
@@ -4760,7 +4760,7 @@ public final class Graph {
                 edu.uci.eecs.crowdsafe.graph.data.results.Graph.ModuleInstance.class, edu.uci.eecs.crowdsafe.graph.data.results.Graph.ModuleInstance.Builder.class);
       }
 
-      // Construct using edu.uci.eecs.crowdsafe.common.data.results.Graph.ModuleInstance.newBuilder()
+      // Construct using edu.uci.eecs.crowdsafe.graph.data.results.Graph.ModuleInstance.newBuilder()
       private Builder() {
         maybeForceBuilderInitialization();
       }
@@ -5561,7 +5561,7 @@ public final class Graph {
                 edu.uci.eecs.crowdsafe.graph.data.results.Graph.Node.class, edu.uci.eecs.crowdsafe.graph.data.results.Graph.Node.Builder.class);
       }
 
-      // Construct using edu.uci.eecs.crowdsafe.common.data.results.Graph.Node.newBuilder()
+      // Construct using edu.uci.eecs.crowdsafe.graph.data.results.Graph.Node.newBuilder()
       private Builder() {
         maybeForceBuilderInitialization();
       }
@@ -6296,7 +6296,7 @@ public final class Graph {
                 edu.uci.eecs.crowdsafe.graph.data.results.Graph.Edge.class, edu.uci.eecs.crowdsafe.graph.data.results.Graph.Edge.Builder.class);
       }
 
-      // Construct using edu.uci.eecs.crowdsafe.common.data.results.Graph.Edge.newBuilder()
+      // Construct using edu.uci.eecs.crowdsafe.graph.data.results.Graph.Edge.newBuilder()
       private Builder() {
         maybeForceBuilderInitialization();
       }
@@ -7102,7 +7102,7 @@ public final class Graph {
                 edu.uci.eecs.crowdsafe.graph.data.results.Graph.UnreachableNode.class, edu.uci.eecs.crowdsafe.graph.data.results.Graph.UnreachableNode.Builder.class);
       }
 
-      // Construct using edu.uci.eecs.crowdsafe.common.data.results.Graph.UnreachableNode.newBuilder()
+      // Construct using edu.uci.eecs.crowdsafe.graph.data.results.Graph.UnreachableNode.newBuilder()
       private Builder() {
         maybeForceBuilderInitialization();
       }
@@ -7960,7 +7960,7 @@ public final class Graph {
                 edu.uci.eecs.crowdsafe.graph.data.results.Graph.EdgeTypeCount.class, edu.uci.eecs.crowdsafe.graph.data.results.Graph.EdgeTypeCount.Builder.class);
       }
 
-      // Construct using edu.uci.eecs.crowdsafe.common.data.results.Graph.EdgeTypeCount.newBuilder()
+      // Construct using edu.uci.eecs.crowdsafe.graph.data.results.Graph.EdgeTypeCount.newBuilder()
       private Builder() {
         maybeForceBuilderInitialization();
       }
@@ -8485,7 +8485,7 @@ public final class Graph {
                 edu.uci.eecs.crowdsafe.graph.data.results.Graph.UIBObservation.class, edu.uci.eecs.crowdsafe.graph.data.results.Graph.UIBObservation.Builder.class);
       }
 
-      // Construct using edu.uci.eecs.crowdsafe.common.data.results.Graph.UIBObservation.newBuilder()
+      // Construct using edu.uci.eecs.crowdsafe.graph.data.results.Graph.UIBObservation.newBuilder()
       private Builder() {
         maybeForceBuilderInitialization();
       }
@@ -9007,7 +9007,7 @@ public final class Graph {
                 edu.uci.eecs.crowdsafe.graph.data.results.Graph.SuspiciousGencodeEntry.class, edu.uci.eecs.crowdsafe.graph.data.results.Graph.SuspiciousGencodeEntry.Builder.class);
       }
 
-      // Construct using edu.uci.eecs.crowdsafe.common.data.results.Graph.SuspiciousGencodeEntry.newBuilder()
+      // Construct using edu.uci.eecs.crowdsafe.graph.data.results.Graph.SuspiciousGencodeEntry.newBuilder()
       private Builder() {
         maybeForceBuilderInitialization();
       }
@@ -9921,7 +9921,7 @@ public final class Graph {
                 edu.uci.eecs.crowdsafe.graph.data.results.Graph.ModuleMetadata.class, edu.uci.eecs.crowdsafe.graph.data.results.Graph.ModuleMetadata.Builder.class);
       }
 
-      // Construct using edu.uci.eecs.crowdsafe.common.data.results.Graph.ModuleMetadata.newBuilder()
+      // Construct using edu.uci.eecs.crowdsafe.graph.data.results.Graph.ModuleMetadata.newBuilder()
       private Builder() {
         maybeForceBuilderInitialization();
       }
@@ -11691,7 +11691,7 @@ public final class Graph {
                 edu.uci.eecs.crowdsafe.graph.data.results.Graph.Interval.class, edu.uci.eecs.crowdsafe.graph.data.results.Graph.Interval.Builder.class);
       }
 
-      // Construct using edu.uci.eecs.crowdsafe.common.data.results.Graph.Interval.newBuilder()
+      // Construct using edu.uci.eecs.crowdsafe.graph.data.results.Graph.Interval.newBuilder()
       private Builder() {
         maybeForceBuilderInitialization();
       }
@@ -12257,7 +12257,7 @@ public final class Graph {
                 edu.uci.eecs.crowdsafe.graph.data.results.Graph.IntervalGroup.class, edu.uci.eecs.crowdsafe.graph.data.results.Graph.IntervalGroup.Builder.class);
       }
 
-      // Construct using edu.uci.eecs.crowdsafe.common.data.results.Graph.IntervalGroup.newBuilder()
+      // Construct using edu.uci.eecs.crowdsafe.graph.data.results.Graph.IntervalGroup.newBuilder()
       private Builder() {
         maybeForceBuilderInitialization();
       }
@@ -13016,7 +13016,7 @@ public final class Graph {
                 edu.uci.eecs.crowdsafe.graph.data.results.Graph.SuspiciousSyscall.class, edu.uci.eecs.crowdsafe.graph.data.results.Graph.SuspiciousSyscall.Builder.class);
       }
 
-      // Construct using edu.uci.eecs.crowdsafe.common.data.results.Graph.SuspiciousSyscall.newBuilder()
+      // Construct using edu.uci.eecs.crowdsafe.graph.data.results.Graph.SuspiciousSyscall.newBuilder()
       private Builder() {
         maybeForceBuilderInitialization();
       }
@@ -13812,7 +13812,7 @@ public final class Graph {
                 edu.uci.eecs.crowdsafe.graph.data.results.Graph.ProcessMetadata.class, edu.uci.eecs.crowdsafe.graph.data.results.Graph.ProcessMetadata.Builder.class);
       }
 
-      // Construct using edu.uci.eecs.crowdsafe.common.data.results.Graph.ProcessMetadata.newBuilder()
+      // Construct using edu.uci.eecs.crowdsafe.graph.data.results.Graph.ProcessMetadata.newBuilder()
       private Builder() {
         maybeForceBuilderInitialization();
       }
@@ -14841,8 +14841,8 @@ public final class Graph {
       "EXPECTED_RETURN\020\004\022\020\n\014GENCODE_PERM\020\005\022\021\n\rG" +
       "ENCODE_WRITE\020\006*E\n\016EvaluationType\022\r\n\tUIB_" +
       "TOTAL\020\000\022\020\n\014UIB_ADMITTED\020\001\022\022\n\016UIB_SUSPICI" +
-      "OUS\020\002B3\n*edu.uci.eecs.crowdsafe.common.d",
-      "ata.resultsB\005Graph"
+      "OUS\020\002B2\n)edu.uci.eecs.crowdsafe.graph.da",
+      "ta.resultsB\005Graph"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
       new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {
