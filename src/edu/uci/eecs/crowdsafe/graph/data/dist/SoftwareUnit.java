@@ -7,7 +7,7 @@ import edu.uci.eecs.crowdsafe.graph.util.CrowdSafeTraceUtil;
 
 public class SoftwareUnit {
 
-	private static final Pattern FILENAME_PATTERN = Pattern.compile("^([^\\-]+)-([^\\-]+-[^\\-]+-[^\\-]+)$");
+	private static final Pattern FILENAME_PATTERN = Pattern.compile("^(.*)-([^\\-]+-[^\\-]+-[^\\-]+)$");
 
 	public static final String SYSTEM_UNIT_NAME = "__system";
 	public static final String ANONYMOUS_UNIT_NAME = "__anonymous";
