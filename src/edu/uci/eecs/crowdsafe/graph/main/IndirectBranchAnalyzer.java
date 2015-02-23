@@ -134,8 +134,6 @@ public class IndirectBranchAnalyzer {
 				loadSession = new ClusterGraphLoadSession(dataSource);
 
 				for (AutonomousSoftwareDistribution cluster : dataSource.getReprsentedClusters()) {
-					if (!cluster.getUnitFilename().equalsIgnoreCase("excel.exe"))
-						continue;
 					ModuleGraphCluster<?> graph = loadSession.loadClusterGraph(cluster);
 					edgeCounter.countEdges(graph.getGraphData().nodesByHash);
 				}

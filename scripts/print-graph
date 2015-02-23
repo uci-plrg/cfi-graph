@@ -18,8 +18,9 @@ done
 shift $(( $OPTIND - 1 ))
 
 append_classpath "CROWD_SAFE_COMMON_DIR"
+append_classpath "CROWD_SAFE_GRAPH_DIR"
 
-main_class="edu.uci.eecs.crowdsafe.common.main.GraphSummaryPrinter"
+main_class="edu.uci.eecs.crowdsafe.graph.main.GraphSummaryPrinter"
 
 run_dir=$1
 

@@ -48,6 +48,14 @@ public class AutonomousSoftwareDistribution {
 			return name;
 	}
 
+	public SoftwareUnit getSingletonUnit() {
+		if (units.size() > 1)
+			throw new IllegalArgumentException("Cannot get singleton unit from a cluster having " + units.size()
+					+ " units");
+
+		return units.iterator().next();
+	}
+
 	public boolean isAnonymous() {
 		return isAnonymous;
 	}

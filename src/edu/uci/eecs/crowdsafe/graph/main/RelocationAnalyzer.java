@@ -1,19 +1,17 @@
 package edu.uci.eecs.crowdsafe.graph.main;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 
-import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
+import edu.uci.eecs.crowdsafe.graph.data.ModuleRelocations;
 import edu.uci.eecs.crowdsafe.graph.data.dist.AutonomousSoftwareDistribution;
 import edu.uci.eecs.crowdsafe.graph.data.dist.ConfiguredSoftwareDistributions;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
@@ -34,19 +32,6 @@ import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDirectory;
 import edu.uci.eecs.crowdsafe.graph.util.CrowdSafeTraceUtil;
 
 public class RelocationAnalyzer {
-
-	private class ModuleRelocations {
-		private Set<Long> relocatableTargets = new HashSet<Long>();
-
-		public ModuleRelocations(File relocationFile) throws IOException {
-			LittleEndianInputStream in = new LittleEndianInputStream(new FileInputStream(relocationFile), "Relocations");
-			while (in.ready()) {
-				Long relocatableTarget = (long) in.readInt();
-				relocatableTargets.add(relocatableTarget);
-				// System.out.println(String.format("\t0x%x", relocatableTarget));
-			}
-		}
-	}
 
 	private class EdgeCounter {
 		private long indirectBranchCount = 0;
@@ -304,8 +289,7 @@ public class RelocationAnalyzer {
 				File relocationFile = new File(relocationDirectory, moduleName + ".relocations.dat");
 				if (relocationFile.exists()) {
 					relocations = new ModuleRelocations(relocationFile);
-					System.out.println("Found " + relocations.relocatableTargets.size()
-							+ " relocatable targets for module " + moduleName);
+					System.out.println("Found " + relocations.size() + " relocatable targets for module " + moduleName);
 				}
 
 				ClusterMetadataSequence sequence = graph.metadata.sequences.values().iterator().next();
@@ -365,8 +349,7 @@ public class RelocationAnalyzer {
 							System.out.println("SUIB (original): " + uib.edge);
 
 							boolean isRelocatableTarget = relocations != null
-									&& relocations.relocatableTargets.contains((long) uib.edge.getToNode()
-											.getRelativeTag());
+									&& relocations.containsTag((long) uib.edge.getToNode().getRelativeTag());
 							if (uib.edge.getToNode().isMetaNode()) {
 								if (!isRelocatableTarget)
 									System.out.println("SUIB (exit): " + uib.edge);
@@ -440,8 +423,8 @@ public class RelocationAnalyzer {
 									for (Edge<?> edge : outgoing) {
 										if (edge != uib.edge) {
 											isRelocatableTarget = relocations != null
-													&& relocations.relocatableTargets.contains((long) edge.getToNode()
-															.getRelativeTag());
+													&& relocations
+															.containsTag((long) edge.getToNode().getRelativeTag());
 											String tag = "";
 											if (edge.getToNode().getType() == MetaNodeType.CLUSTER_EXIT) {
 												ModuleGraphCluster<?> toGraph = findGraphForExit(edge.getToNode()
@@ -461,6 +444,23 @@ public class RelocationAnalyzer {
 							}
 						} finally {
 							if (isSuspicious) {
+								System.out.println(String.format("&SUIB-#%d&%s&%s", executionIndex,
+										uib.edge.getFromNode(), uib.edge.getToNode()));
+								/*
+								 * OrdinalEdgeList<ClusterNode<?>> edges = uib.edge.getFromNode().getOutgoingEdges();
+								 * try { System.out
+								 * .println(String.format("&SUIB-#%d&%s&%s -- total outgoing edges: %d", executionIndex,
+								 * uib.edge.getFromNode(), uib.edge.getToNode(), edges.size())); for (Edge<?> edge :
+								 * edges) { if (edge != uib.edge) { boolean isRelocatableTarget = relocations != null &&
+								 * relocations.relocatableTargets.contains((long) edge.getToNode() .getRelativeTag());
+								 * String tag = ""; if (edge.getToNode().getType() == MetaNodeType.CLUSTER_EXIT) {
+								 * ModuleGraphCluster<?> toGraph = findGraphForExit(edge.getToNode() .getHash(),
+								 * graph.cluster.getUnitFilename()); if (toGraph != null) tag = "<" +
+								 * toGraph.cluster.getUnitFilename() + ">"; } if (isRelocatableTarget)
+								 * System.out.println("\t> !SUIB: " + edge + " " + tag); else
+								 * System.out.println("\t> ?SUIB: " + edge + " " + tag); } }
+								 * System.out.println("&SUIB&"); } finally { edges.release(); }
+								 */
 								suspiciousInExecution++;
 							} else {
 								clearedSuspicion++;
@@ -471,7 +471,7 @@ public class RelocationAnalyzer {
 						System.out
 								.println("@ Found " + suspiciousInExecution + " SUIB in execution #" + executionIndex);
 				}
-				
+
 				if (relocations == null) {
 					totalSuibSkipped += suibSkipped;
 					System.err.println("Warning: no relocations for module " + moduleName + " ("
@@ -488,7 +488,7 @@ public class RelocationAnalyzer {
 			}
 
 			System.out.println("@ Analyzed " + maxExecutionsPerModule + " total app executions");
-			
+
 			System.out.println("Half: #" + halfClearedSuspicion + "# of #" + halfOriginallySuspicious
 					+ "# suspicious targets (#" + (halfOriginallySuspicious - halfClearedSuspicion)
 					+ "# remain suspicious)");

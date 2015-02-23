@@ -25,7 +25,6 @@ public class ClusterModuleLoader {
 
 		BufferedReader input = new BufferedReader(new InputStreamReader(dataSource.getDataInputStream(cluster,
 				ClusterTraceStreamType.MODULE)));
-
 		while (input.ready()) {
 			String moduleLine = input.readLine();
 			if (moduleLine.length() == 0)
@@ -34,6 +33,7 @@ public class ClusterModuleLoader {
 			SoftwareUnit unit = ConfiguredSoftwareDistributions.getInstance().establishUnitByFileSystemName(moduleLine);
 			modules.addModule(unit);
 		}
+		input.close();
 
 		return modules;
 	}

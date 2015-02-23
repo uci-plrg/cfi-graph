@@ -1,0 +1,19 @@
+#!/bin/bash
+
+. $csc/scripts/cs-common
+
+function usage() {
+  echo "gha -r <relocation-dir> <run-catalog> (one relative path to run dir per line"
+}
+
+check_help $1 usage
+
+append_classpath "CROWD_SAFE_COMMON_DIR"
+append_classpath "CROWD_SAFE_GRAPH_DIR"
+append_classpath "CROWD_SAFE_MERGE_DIR"
+
+main_class="edu.uci.eecs.crowdsafe.graph.main.GraphHistoryAnalyzer"
+
+#echo "java -cp $cp $main_class $@"
+java -Xms512M -Xmx2048M -cp $cp $main_class $@
+
