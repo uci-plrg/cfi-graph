@@ -71,31 +71,33 @@ public class ClusterMetadata {
 		Graph.Interval.Builder intervalBuilder = Graph.Interval.newBuilder();
 		Graph.SuspiciousSyscall.Builder syscallBuilder = Graph.SuspiciousSyscall.newBuilder();
 
-		ClusterMetadataExecution execution = rootSequence.executions.get(rootSequence.executions.size() - 1);
-		metadataBuilder.setSequenceIdHigh(rootSequence.id.getMostSignificantBits());
-		metadataBuilder.setSequenceIdLow(rootSequence.id.getLeastSignificantBits());
-		metadataBuilder.setExecutionIdHigh(execution.id.getMostSignificantBits());
-		metadataBuilder.setExecutionIdLow(execution.id.getLeastSignificantBits());
-		metadataBuilder.setExecutionIndex(rootSequence.executions.size());
-		for (EvaluationType type : EvaluationType.values()) {
-			intervalGroupBuilder.setType(type.getResultType());
-			for (ClusterUIBInterval interval : execution.getIntervals(type)) {
-				intervalBuilder.setSpan(interval.span);
-				intervalBuilder.setOccurrences(interval.count);
-				intervalBuilder.setMaxConsecutive(interval.maxConsecutive);
-				intervalGroupBuilder.addInterval(intervalBuilder.build());
-				intervalBuilder.clear();
+		if (rootSequence != null) { // hack! FIXME
+			ClusterMetadataExecution execution = rootSequence.executions.get(rootSequence.executions.size() - 1);
+			metadataBuilder.setSequenceIdHigh(rootSequence.id.getMostSignificantBits());
+			metadataBuilder.setSequenceIdLow(rootSequence.id.getLeastSignificantBits());
+			metadataBuilder.setExecutionIdHigh(execution.id.getMostSignificantBits());
+			metadataBuilder.setExecutionIdLow(execution.id.getLeastSignificantBits());
+			metadataBuilder.setExecutionIndex(rootSequence.executions.size());
+			for (EvaluationType type : EvaluationType.values()) {
+				intervalGroupBuilder.setType(type.getResultType());
+				for (ClusterUIBInterval interval : execution.getIntervals(type)) {
+					intervalBuilder.setSpan(interval.span);
+					intervalBuilder.setOccurrences(interval.count);
+					intervalBuilder.setMaxConsecutive(interval.maxConsecutive);
+					intervalGroupBuilder.addInterval(intervalBuilder.build());
+					intervalBuilder.clear();
+				}
+				metadataBuilder.addIntervalGroup(intervalGroupBuilder.build());
+				intervalGroupBuilder.clear();
 			}
-			metadataBuilder.addIntervalGroup(intervalGroupBuilder.build());
-			intervalGroupBuilder.clear();
-		}
-		
-		for (ClusterSSC ssc : execution.sscs) {
-			syscallBuilder.setSysnum(ssc.sysnum);
-			syscallBuilder.setUibCount(ssc.uibCount);
-			syscallBuilder.setSuibCount(ssc.suibCount);
-			metadataBuilder.addSyscalls(syscallBuilder.build());
-			syscallBuilder.clear();
+
+			for (ClusterSSC ssc : execution.sscs) {
+				syscallBuilder.setSysnum(ssc.sysnum);
+				syscallBuilder.setUibCount(ssc.uibCount);
+				syscallBuilder.setSuibCount(ssc.suibCount);
+				metadataBuilder.addSyscalls(syscallBuilder.build());
+				syscallBuilder.clear();
+			}
 		}
 
 		return metadataBuilder.build();

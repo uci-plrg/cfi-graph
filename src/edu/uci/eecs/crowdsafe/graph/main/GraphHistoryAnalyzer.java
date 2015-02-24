@@ -185,8 +185,8 @@ public class GraphHistoryAnalyzer {
 				anonymousEntryHashes.add(((ClusterNode<?>) exit).getHash());
 			}
 
-			Log.log("Setup %d entries into gencode and %d exits from gencode (for cluster %s)",
-					anonymousEntryHashes.size(), anonymousExitHashes.size(), anonymous.cluster.id);
+			// Log.log("Setup %d entries into gencode and %d exits from gencode (for cluster %s)",
+			// anonymousEntryHashes.size(), anonymousExitHashes.size(), anonymous.cluster.id);
 		}
 	}
 
@@ -211,6 +211,14 @@ public class GraphHistoryAnalyzer {
 	private GraphHistoryAnalyzer(ArgumentStack args) {
 		this.args = args;
 		this.options = new CommonMergeOptions(args, CommonMergeOptions.crowdSafeCommonDir, relocationOption);
+	}
+
+	private ModuleGraphCluster<?> loadGraph(AutonomousSoftwareDistribution cluster) throws IOException {
+		ModuleGraphCluster<?> graph;
+		Log.setSilent(true);
+		graph = loadSession.loadClusterGraph(cluster);
+		Log.setSilent(false);
+		return graph;
 	}
 
 	private void run() {
@@ -254,12 +262,11 @@ public class GraphHistoryAnalyzer {
 				dataSource = new ClusterTraceDirectory(runDirectory).loadExistingFiles();
 				loadSession = new ClusterGraphLoadSession(dataSource);
 
-				edgeAnalyzer.setupAnonymousHashes(loadSession
-						.loadClusterGraph(ConfiguredSoftwareDistributions.ANONYMOUS_CLUSTER));
+				edgeAnalyzer.setupAnonymousHashes(loadGraph(ConfiguredSoftwareDistributions.ANONYMOUS_CLUSTER));
 				graphCount++;
 				currentRun = runDirectory.getName();
 				for (AutonomousSoftwareDistribution cluster : dataSource.getReprsentedClusters()) {
-					ModuleGraphCluster<?> graph = loadSession.loadClusterGraph(cluster);
+					ModuleGraphCluster<?> graph = loadGraph(cluster);
 					edgeAnalyzer.analyzeGraph(graph);
 				}
 			}
