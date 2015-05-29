@@ -1,6 +1,7 @@
 package edu.uci.eecs.crowdsafe.graph.main;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -81,17 +82,17 @@ public class RelocationAnalyzer {
 		}
 
 		private void report() {
-			System.out.println("branch-stats: Total edges: " + indirectBranchCount);
-			System.out.println("branch-stats: Total targets: " + targetCount);
-			System.out.println("branch-stats: Mean: " + (targetCount / (double) indirectBranchCount));
-			System.out.println("branch-stats: Total edges (degree 5): " + degree5BranchCount);
-			System.out.println("branch-stats: Percent having degree 2 or more: "
+			Log.log("branch-stats: Total edges: " + indirectBranchCount);
+			Log.log("branch-stats: Total targets: " + targetCount);
+			Log.log("branch-stats: Mean: " + (targetCount / (double) indirectBranchCount));
+			Log.log("branch-stats: Total edges (degree 5): " + degree5BranchCount);
+			Log.log("branch-stats: Percent having degree 2 or more: "
 					+ (degree2BranchCount / (double) indirectBranchCount));
-			System.out.println("branch-stats: Percent having degree 3 or more: "
+			Log.log("branch-stats: Percent having degree 3 or more: "
 					+ (degree3BranchCount / (double) indirectBranchCount));
-			System.out.println("branch-stats: Percent having degree 5 or more: "
+			Log.log("branch-stats: Percent having degree 5 or more: "
 					+ (degree5BranchCount / (double) indirectBranchCount));
-			System.out.println("branch-stats: Percent having degree 10 or more: "
+			Log.log("branch-stats: Percent having degree 10 or more: "
 					+ (degree10BranchCount / (double) indirectBranchCount));
 		}
 	}
@@ -183,7 +184,7 @@ public class RelocationAnalyzer {
 						}
 					}
 				}
-				System.out.println("Cluster " + graph.cluster.getUnitFilename() + " has "
+				Log.log("Cluster " + graph.cluster.getUnitFilename() + " has "
 						+ (suspiciousExitMap.get(graph.cluster) ? "" : "no") + " suspicious exits");
 
 				long anonymousExitHash = CrowdSafeTraceUtil.stringHash(String.format("%s/<anonymous>!callback",
@@ -207,8 +208,8 @@ public class RelocationAnalyzer {
 														.println("Node "
 																+ exitEdge.getFromNode()
 																+ " has unexpected returns into gencode and also edges to other places");
-												System.out.println("\tUR: " + exitEdge);
-												System.out.println("\tOther: " + peerEdge);
+												Log.log("\tUR: " + exitEdge);
+												Log.log("\tOther: " + peerEdge);
 											}
 										}
 									} finally {
@@ -221,8 +222,7 @@ public class RelocationAnalyzer {
 						}
 					}
 				}
-				System.out.println("Checked " + urCount + " unexpected returns for module "
-						+ graph.cluster.getUnitFilename());
+				Log.log("Checked " + urCount + " unexpected returns for module " + graph.cluster.getUnitFilename());
 			}
 
 			int whiteBoxCycleCount = 0, checkedWhiteBoxEntries = 0, checkedWhiteBoxNodes = 0;
@@ -268,10 +268,10 @@ public class RelocationAnalyzer {
 				}
 			}
 
-			System.out.println("White boxes having cycles: " + whiteBoxCycleCount + " (checked "
-					+ checkedWhiteBoxEntries + " entries and " + checkedWhiteBoxNodes + " nodes)");
+			Log.log("White boxes having cycles: " + whiteBoxCycleCount + " (checked " + checkedWhiteBoxEntries
+					+ " entries and " + checkedWhiteBoxNodes + " nodes)");
 
-			System.out.println("----");
+			Log.log("----");
 
 			int halfClearedSuspicion = 0;
 			int halfOriginallySuspicious = 0;
@@ -289,12 +289,11 @@ public class RelocationAnalyzer {
 				File relocationFile = new File(relocationDirectory, moduleName + ".relocations.dat");
 				if (relocationFile.exists()) {
 					relocations = new ModuleRelocations(relocationFile);
-					System.out.println("Found " + relocations.size() + " relocatable targets for module " + moduleName);
+					Log.log("Found " + relocations.size() + " relocatable targets for module " + moduleName);
 				}
 
 				ClusterMetadataSequence sequence = graph.metadata.sequences.values().iterator().next();
-				System.out.println("Graph " + graph.name + " has " + sequence.executions.size()
-						+ " metadata executions");
+				Log.log("Graph " + graph.name + " has " + sequence.executions.size() + " metadata executions");
 
 				singleton = sequence.executions.size() == 1;
 				if (relocations == null) {
@@ -342,17 +341,17 @@ public class RelocationAnalyzer {
 								continue;
 							}
 							if (uib.edge.getFromNode().getType() == MetaNodeType.RETURN)
-								System.out.println("Warning: UIB from a return node! " + uib.edge);
+								Log.log("Warning: UIB from a return node! " + uib.edge);
 							if (uib.isAdmitted)
 								continue;
 
-							System.out.println("SUIB (original): " + uib.edge);
+							Log.log("SUIB (original): " + uib.edge);
 
 							boolean isRelocatableTarget = relocations != null
 									&& relocations.containsTag((long) uib.edge.getToNode().getRelativeTag());
 							if (uib.edge.getToNode().isMetaNode()) {
 								if (!isRelocatableTarget)
-									System.out.println("SUIB (exit): " + uib.edge);
+									Log.log("SUIB (exit): " + uib.edge);
 								continue;
 							}
 							originallySuspicious++;
@@ -369,7 +368,7 @@ public class RelocationAnalyzer {
 											.getInstance().getClusterByAnonymousExitHash(
 													uib.edge.getFromNode().getHash());
 									if (cluster != null) {
-										System.out.println("SUIB from anonymous: " + uib.edge);
+										Log.log("SUIB from anonymous: " + uib.edge);
 										continue;
 									}
 									long dllEntryHash = CrowdSafeTraceUtil.stringHash("!DllMain");
@@ -377,9 +376,8 @@ public class RelocationAnalyzer {
 										isSuspicious = false;
 										continue; // dll entry is not suspicious...
 									} else {
-										System.out.println("SUIB: " + uib.edge);
-										System.out.println("Warning: cannot find the exit graph matching the entry of "
-												+ uib.edge);
+										Log.log("SUIB: " + uib.edge);
+										Log.log("Warning: cannot find the exit graph matching the entry of " + uib.edge);
 									}
 									continue;
 								}
@@ -389,7 +387,7 @@ public class RelocationAnalyzer {
 								}
 								Node<?> exit = fromGraph.getExitPoint(uib.edge.getFromNode().getHash());
 								if (exit == null) {
-									System.out.println("Warning: cannot find the exit node in "
+									Log.log("Warning: cannot find the exit node in "
 											+ fromGraph.cluster.getUnitFilename() + " (matching the entry of "
 											+ uib.edge + ")");
 									continue;
@@ -402,22 +400,21 @@ public class RelocationAnalyzer {
 											allReturns = false;
 											break;
 										}
-										// System.out.println("\tSUIB: from " + edge);
+										// Log.log("\tSUIB: from " + edge);
 									}
 									if (allReturns) {
 										isSuspicious = false;
 										continue;
 									}
-									System.out.println("SUIB: <" + fromGraph.cluster.getUnitFilename() + "> "
-											+ uib.edge);
+									Log.log("SUIB: <" + fromGraph.cluster.getUnitFilename() + "> " + uib.edge);
 								} finally {
 									incoming.release();
 								}
 							} else if (uib.edge.getFromNode().getType() == MetaNodeType.RETURN) {
-								System.out.println("Warning: SUIB from a return node! " + uib.edge);
+								Log.log("Warning: SUIB from a return node! " + uib.edge);
 								isSuspicious = false;
 							} else {
-								System.out.println("SUIB: " + uib.edge + "; other edges: ");
+								Log.log("SUIB: " + uib.edge + "; other edges: ");
 								OrdinalEdgeList<?> outgoing = uib.edge.getFromNode().getOutgoingEdges();
 								try {
 									for (Edge<?> edge : outgoing) {
@@ -433,9 +430,9 @@ public class RelocationAnalyzer {
 													tag = "<" + toGraph.cluster.getUnitFilename() + ">";
 											}
 											if (isRelocatableTarget)
-												System.out.println("\t> !SUIB: " + edge + " " + tag);
+												Log.log("\t> !SUIB: " + edge + " " + tag);
 											else
-												System.out.println("\t> ?SUIB: " + edge + " " + tag);
+												Log.log("\t> ?SUIB: " + edge + " " + tag);
 										}
 									}
 								} finally {
@@ -444,8 +441,8 @@ public class RelocationAnalyzer {
 							}
 						} finally {
 							if (isSuspicious) {
-								System.out.println(String.format("&SUIB-#%d&%s&%s", executionIndex,
-										uib.edge.getFromNode(), uib.edge.getToNode()));
+								Log.log(String.format("&SUIB-#%d&%s&%s", executionIndex, uib.edge.getFromNode(),
+										uib.edge.getToNode()));
 								/*
 								 * OrdinalEdgeList<ClusterNode<?>> edges = uib.edge.getFromNode().getOutgoingEdges();
 								 * try { System.out
@@ -457,9 +454,8 @@ public class RelocationAnalyzer {
 								 * ModuleGraphCluster<?> toGraph = findGraphForExit(edge.getToNode() .getHash(),
 								 * graph.cluster.getUnitFilename()); if (toGraph != null) tag = "<" +
 								 * toGraph.cluster.getUnitFilename() + ">"; } if (isRelocatableTarget)
-								 * System.out.println("\t> !SUIB: " + edge + " " + tag); else
-								 * System.out.println("\t> ?SUIB: " + edge + " " + tag); } }
-								 * System.out.println("&SUIB&"); } finally { edges.release(); }
+								 * Log.log("\t> !SUIB: " + edge + " " + tag); else Log.log("\t> ?SUIB: " + edge + " " +
+								 * tag); } } Log.log("&SUIB&"); } finally { edges.release(); }
 								 */
 								suspiciousInExecution++;
 							} else {
@@ -476,29 +472,26 @@ public class RelocationAnalyzer {
 					totalSuibSkipped += suibSkipped;
 					System.err.println("Warning: no relocations for module " + moduleName + " ("
 							+ sequence.executions.size() + " executions). Skipping it.");
-					System.out.println("Warning: no relocations for module " + moduleName + " ("
-							+ sequence.executions.size() + " executions). Skipping " + suibSkipped
-							+ " suspicious branches.");
+					Log.log("Warning: no relocations for module " + moduleName + " (" + sequence.executions.size()
+							+ " executions). Skipping " + suibSkipped + " suspicious branches.");
 				}
 				totalClearedSuspicion += clearedSuspicion;
 				totalOriginallySuspicious += originallySuspicious;
-				System.out.println("Cleared suspicion for #" + clearedSuspicion + "# of #" + originallySuspicious
+				Log.log("Cleared suspicion for #" + clearedSuspicion + "# of #" + originallySuspicious
 						+ "# suspcious targets in " + moduleName + " (#" + (originallySuspicious - clearedSuspicion)
 						+ "# remain suspicious)");
 			}
 
-			System.out.println("@ Analyzed " + maxExecutionsPerModule + " total app executions");
+			Log.log("@ Analyzed " + maxExecutionsPerModule + " total app executions");
 
-			System.out.println("Half: #" + halfClearedSuspicion + "# of #" + halfOriginallySuspicious
-					+ "# suspicious targets (#" + (halfOriginallySuspicious - halfClearedSuspicion)
-					+ "# remain suspicious)");
-			System.out.println("Total: cleared suspicion for #" + totalClearedSuspicion + "# of #"
-					+ totalOriginallySuspicious + "# suspicious targets (#"
-					+ (totalOriginallySuspicious - totalClearedSuspicion) + "# remain suspicious, #" + totalSuibSkipped
+			Log.log("Half: #" + halfClearedSuspicion + "# of #" + halfOriginallySuspicious + "# suspicious targets (#"
+					+ (halfOriginallySuspicious - halfClearedSuspicion) + "# remain suspicious)");
+			Log.log("Total: cleared suspicion for #" + totalClearedSuspicion + "# of #" + totalOriginallySuspicious
+					+ "# suspicious targets (#" + (totalOriginallySuspicious - totalClearedSuspicion)
+					+ "# remain suspicious, #" + totalSuibSkipped + "# skipped)");
+			Log.log("Skip: #" + singletonExecutionModulesSkipped + "# singleton execution modules skipped, #"
+					+ multipleExecutionModulesSkipped + "# multiple execution modules skipped, #" + totalSuibSkipped
 					+ "# skipped)");
-			System.out.println("Skip: #" + singletonExecutionModulesSkipped
-					+ "# singleton execution modules skipped, #" + multipleExecutionModulesSkipped
-					+ "# multiple execution modules skipped, #" + totalSuibSkipped + "# skipped)");
 
 			// for (ClusterMetadataSequence sequence : graph.metadata.sequences.values()) {
 
