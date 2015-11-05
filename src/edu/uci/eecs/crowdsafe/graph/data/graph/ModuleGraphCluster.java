@@ -261,10 +261,10 @@ public class ModuleGraphCluster<EdgeEndpointType extends Node<EdgeEndpointType>>
 		if (!unreachableNodes.isEmpty()) {
 			edgeStudy(unreachableNodes);
 
-			Log.log("%d unreachable nodes for %s", unreachableNodes.size(), name);
-
-			if (!CrowdSafeDebug.LOG_UNREACHABLE_ENTRY_POINTS)
+			if (!CrowdSafeDebug.LOG_UNREACHABLE_ENTRY_POINTS) {
+				Log.log("%d unreachable nodes for %s", unreachableNodes.size(), name);
 				return;
+			}
 
 			Set<EdgeEndpointType> missedEntries = new HashSet<EdgeEndpointType>();
 			for (EdgeEndpointType node : unreachableNodes) {
@@ -279,9 +279,13 @@ public class ModuleGraphCluster<EdgeEndpointType extends Node<EdgeEndpointType>>
 					missedEntries.add(node);
 			}
 
+			Log.log("%d unreachable entry points for %s (%d total nodes)", missedEntries.size(), name,
+					unreachableNodes.size());
+
 			int limitCounter = 0;
 			for (EdgeEndpointType node : missedEntries) {
-				if (++limitCounter == CrowdSafeDebug.MAX_UNREACHABLE_NODE_REPORT) {
+				if (CrowdSafeDebug.MAX_UNREACHABLE_NODE_REPORT > 0
+						&& ++limitCounter == CrowdSafeDebug.MAX_UNREACHABLE_NODE_REPORT) {
 					Log.log("\t...");
 					break;
 				}
@@ -561,7 +565,7 @@ public class ModuleGraphCluster<EdgeEndpointType extends Node<EdgeEndpointType>>
 					}
 				}
 			}
-			
+
 			for (ClusterSGE sge : execution.sges) {
 				sgeBuilder.setUibCount(sge.uibCount);
 				sgeBuilder.setSuibCount(sge.suibCount);
