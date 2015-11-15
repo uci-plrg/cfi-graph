@@ -52,7 +52,7 @@ public class GraphSummaryPrinter {
 			if (outputFile.getParentFile() == null)
 				outputFile = new File(new File("."), outputOption.getValue());
 			if (!outputFile.getParentFile().exists()) {
-				Log.log("Illegal argument '" + outputOption.getValue() + "'; no such directory.");
+				Log.log("Illegal argument '" + outputFile.getParentFile().getAbsolutePath() + "'; no such directory.");
 				printUsageAndExit();
 			}
 

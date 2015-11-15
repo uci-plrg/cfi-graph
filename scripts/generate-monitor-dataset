@@ -48,7 +48,9 @@ echo "Transforming graph '"$graph_dir"' into '"$output_file"'"
 #echo "java -cp $cp $main_class $@"
 java -Xms512M -Xmx2048M -cp $cp $main_class -o $output_file $alarm_config_option $graph_dir &> $logfile
 
-concatenate_script=$(dirname $output_file)/concatenate
+output_dir=$(dirname $output_file)
+[ -z "$output_dir" ] && output_dir="."
+concatenate_script=$output_dir/concatenate
 chmod u+x $concatenate_script
 $concatenate_script
 
