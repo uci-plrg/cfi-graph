@@ -120,7 +120,7 @@ public class ClusterGraphMetadataLoader {
 			int sysnum = (int) (sscData & 0xffffL);
 			int sscUibCount = (int) ((sscData >> 0x10) & 0xffffL);
 			int sscSuibCount = (int) ((sscData >> 0x20) & 0xffffL);
-			ClusterSSC ssc = new ClusterSSC(sysnum, sscUibCount, sscSuibCount);
+			ClusterSSC ssc = new ClusterSSC(null /* edge is missing! */, sysnum, sscUibCount, sscSuibCount);
 			execution.sscs.add(ssc);
 		}
 
