@@ -103,6 +103,7 @@ public class ClusterGraphLoadSession {
 			try {
 				loadMetadata();
 			} catch (Throwable t) {
+				Log.log(t);
 				Log.log("Warning: failed to load the metadata from graph %s", cluster.name);
 			}
 

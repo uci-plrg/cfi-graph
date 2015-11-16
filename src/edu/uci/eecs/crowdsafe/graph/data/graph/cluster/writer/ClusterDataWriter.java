@@ -145,8 +145,7 @@ public class ClusterDataWriter<NodeType extends NodeIdentifier> {
 	}
 
 	public void writeMetadataHistory(ClusterMetadata metadata,
-			Map<edu.uci.eecs.crowdsafe.graph.data.graph.Edge<ClusterNode<?>>, Integer> edgeIndexMap)
-			throws IOException {
+			Map<edu.uci.eecs.crowdsafe.graph.data.graph.Edge<ClusterNode<?>>, Integer> edgeIndexMap) throws IOException {
 		writeMetadataHeader(metadata.isMain());
 		for (ClusterMetadataSequence sequence : metadata.sequences.values()) {
 			writeSequenceMetadataHeader(sequence.executions.size(), sequence.isRoot());
@@ -162,7 +161,8 @@ public class ClusterDataWriter<NodeType extends NodeIdentifier> {
 					}
 				}
 				for (ClusterSSC ssc : execution.sscs) {
-					writeSSC(ssc.sysnum, ssc.uibCount, ssc.suibCount);
+					writeSSC(ssc.sysnum, edgeIndexMap.get(ssc.suspicionRaisingEdge));
+					// old format: ssc.uibCount, ssc.suibCount);
 				}
 				for (ClusterSGE sge : execution.sges) {
 					Integer edgeIndex = edgeIndexMap.get(sge.edge);
@@ -188,10 +188,9 @@ public class ClusterDataWriter<NodeType extends NodeIdentifier> {
 		// Log.log("Wrote UIB for edge #%d: %d traversals\n", edgeIndex, traversalCount);
 	}
 
-	public void writeSSC(int sysnum, int uibCount, int suibCount) throws IOException {
+	public void writeSSC(int sysnum, int edgeIndex) throws IOException {
 		long word = sysnum;
-		word |= (((long) uibCount) << 0x10);
-		word |= (((long) suibCount) << 0x20);
+		word |= (((long) (edgeIndex & 0xfffff)) << 0x10);
 		metaStream.writeLong(word);
 	}
 

@@ -122,6 +122,7 @@ public class RawGraphTransformer {
 	private final Set<AutonomousSoftwareDistribution> metadataClusters = new HashSet<AutonomousSoftwareDistribution>();
 	private final Map<AutonomousSoftwareDistribution, UnexpectedIndirectBranches> uibsByCluster = new HashMap<AutonomousSoftwareDistribution, UnexpectedIndirectBranches>();
 	private final Map<AutonomousSoftwareDistribution, Set<RawSuspiciousGencodeEntry>> sgesByCluster = new HashMap<AutonomousSoftwareDistribution, Set<RawSuspiciousGencodeEntry>>();
+	private final Map<AutonomousSoftwareDistribution, Set<RawSuspiciousSystemCall>> sscsByCluster = new HashMap<AutonomousSoftwareDistribution, Set<RawSuspiciousSystemCall>>();
 
 	private final Map<RawTag, IndexedClusterNode> nodesByRawTag = new HashMap<RawTag, IndexedClusterNode>();
 	private final Map<RawTag, Integer> fakeAnonymousModuleTags = new HashMap<RawTag, Integer>();
@@ -134,8 +135,9 @@ public class RawGraphTransformer {
 	private final Map<RawUnexpectedIndirectBranchInterval.Key, RawUnexpectedIndirectBranchInterval> uibIntervals = new HashMap<RawUnexpectedIndirectBranchInterval.Key, RawUnexpectedIndirectBranchInterval>();
 	private final LinkedList<RawUnexpectedIndirectBranch> intraModuleUIBQueue = new LinkedList<RawUnexpectedIndirectBranch>();
 	private final LinkedList<RawUnexpectedIndirectBranch> crossModuleUIBQueue = new LinkedList<RawUnexpectedIndirectBranch>();
-	private final List<RawSuspiciousSystemCall> sscs = new ArrayList<RawSuspiciousSystemCall>();
 	private final LinkedList<RawSuspiciousGencodeEntry> gencodeEntryQueue = new LinkedList<RawSuspiciousGencodeEntry>();
+	private final LinkedList<RawSuspiciousSystemCall> intraModuleSuspiciousSyscallQueue = new LinkedList<RawSuspiciousSystemCall>();
+	private final LinkedList<RawSuspiciousSystemCall> crossModuleSuspiciousSyscallQueue = new LinkedList<RawSuspiciousSystemCall>();
 
 	public RawGraphTransformer(ArgumentStack args) {
 		this.args = args;
@@ -232,8 +234,9 @@ public class RawGraphTransformer {
 		transformEdges(ExecutionTraceStreamType.GRAPH_EDGE);
 		transformCrossModuleEdges(ExecutionTraceStreamType.CROSS_MODULE_EDGE);
 
-		Log.log("After transforming all elements, queues contains: %d intra-module, %d cross-module, %d gencode entry",
-				intraModuleUIBQueue.size(), crossModuleUIBQueue.size(), gencodeEntryQueue.size());
+		Log.log("After transforming all elements, queues contains: %d intra-module, %d cross-module, %d gencode entry, %d suspicious system calls (intra-module), %d suspicious system calls (cross-module)",
+				intraModuleUIBQueue.size(), crossModuleUIBQueue.size(), gencodeEntryQueue.size(),
+				intraModuleSuspiciousSyscallQueue.size(), crossModuleSuspiciousSyscallQueue.size());
 
 		writeNodes();
 		writeEdges();
@@ -284,7 +287,10 @@ public class RawGraphTransformer {
 					break;
 				case SSC:
 					RawSuspiciousSystemCall syscall = RawSuspiciousSystemCall.parse(nodeEntry.first);
-					sscs.add(syscall);
+					if (syscall.isCrossModule)
+						crossModuleSuspiciousSyscallQueue.add(syscall);
+					else
+						intraModuleSuspiciousSyscallQueue.add(syscall);
 					break;
 				case SGE:
 					RawSuspiciousGencodeEntry gencodeEntry = RawSuspiciousGencodeEntry.parse(nodeEntry.first);
@@ -296,6 +302,8 @@ public class RawGraphTransformer {
 		Collections.sort(intraModuleUIBQueue, RawUnexpectedIndirectBranch.ExecutionEdgeIndexSorter.INSTANCE);
 		Collections.sort(crossModuleUIBQueue, RawUnexpectedIndirectBranch.ExecutionEdgeIndexSorter.INSTANCE);
 		Collections.sort(gencodeEntryQueue, RawSuspiciousGencodeEntry.ExecutionEdgeIndexSorter.INSTANCE);
+		Collections.sort(crossModuleSuspiciousSyscallQueue, RawSuspiciousSystemCall.ExecutionEdgeIndexSorter.INSTANCE);
+		Collections.sort(intraModuleSuspiciousSyscallQueue, RawSuspiciousSystemCall.ExecutionEdgeIndexSorter.INSTANCE);
 
 		Log.log("Queue sizes: %d IM, %d CM, %d GE", intraModuleUIBQueue.size(), crossModuleUIBQueue.size(),
 				gencodeEntryQueue.size());
@@ -503,6 +511,18 @@ public class RawGraphTransformer {
 				RawUnexpectedIndirectBranch uib = null;
 				while (!intraModuleUIBQueue.isEmpty() && (intraModuleUIBQueue.peekFirst().rawEdgeIndex == entryIndex))
 					uib = intraModuleUIBQueue.removeFirst();
+				while (!intraModuleSuspiciousSyscallQueue.isEmpty()
+						&& intraModuleSuspiciousSyscallQueue.peekFirst().edgeIndex == entryIndex) {
+					RawSuspiciousSystemCall ssc = intraModuleSuspiciousSyscallQueue.removeFirst();
+					ssc.entryEdge = ssc.exitEdge = edge;
+					establishSSCs(fromNodeId.cluster).add(ssc);
+
+					// Log.log("SSC: raising edge: %s (index %d); next IM SSC edge index is %d",
+					// edge,
+					// ssc.edgeIndex,
+					// intraModuleSuspiciousSyscallQueue.isEmpty() ? 0 : intraModuleSuspiciousSyscallQueue
+					// .peekFirst().edgeIndex);
+				}
 
 				if (uib != null) {
 					uib.clusterEdge = edge;
@@ -599,6 +619,17 @@ public class RawGraphTransformer {
 					gencodeEntry.clusterEdge = rawExit;
 					establishSGEs(fromNodeId.cluster).add(gencodeEntry);
 				}
+				while (!crossModuleSuspiciousSyscallQueue.isEmpty()
+						&& crossModuleSuspiciousSyscallQueue.peekFirst().edgeIndex == entryIndex) {
+					RawSuspiciousSystemCall ssc = crossModuleSuspiciousSyscallQueue.removeFirst();
+					ssc.entryEdge = rawEntry;
+					ssc.exitEdge = rawExit;
+					establishSSCs(fromNodeId.cluster).add(ssc);
+
+					// Log.log("SSC: raising edges: [%s] and [%s] (index %d); next CM SSC edge index: %d", rawEntry,
+					// rawExit, ssc.edgeIndex, crossModuleSuspiciousSyscallQueue.isEmpty() ? 0
+					// : crossModuleSuspiciousSyscallQueue.peekFirst().edgeIndex);
+				}
 			}
 		}
 	}
@@ -652,6 +683,16 @@ public class RawGraphTransformer {
 			metadataClusters.add(cluster);
 		}
 		return sges;
+	}
+
+	private Set<RawSuspiciousSystemCall> establishSSCs(AutonomousSoftwareDistribution cluster) {
+		Set<RawSuspiciousSystemCall> sscs = sscsByCluster.get(cluster);
+		if (sscs == null) {
+			sscs = new HashSet<RawSuspiciousSystemCall>();
+			sscsByCluster.put(cluster, sscs);
+			metadataClusters.add(cluster);
+		}
+		return sscs;
 	}
 
 	private IndexedClusterNode identifyNode(long absoluteTag, int tagVersion, long entryIndex,
@@ -737,13 +778,16 @@ public class RawGraphTransformer {
 	private void writeMetadata() throws IOException {
 		UnexpectedIndirectBranches uibsMain = null;
 		Set<RawSuspiciousGencodeEntry> sgesMain = null;
+		Set<RawSuspiciousSystemCall> sscsMain = null;
 		UUID executionId = UUID.randomUUID();
 		for (AutonomousSoftwareDistribution cluster : metadataClusters) {
 			UnexpectedIndirectBranches uibs = uibsByCluster.get(cluster);
 			Set<RawSuspiciousGencodeEntry> sges = sgesByCluster.get(cluster);
+			Set<RawSuspiciousSystemCall> sscs = sscsByCluster.get(cluster);
 			if (cluster == mainCluster) {
 				uibsMain = uibs;
 				sgesMain = sges;
+				sscsMain = sscs;
 				continue;
 			}
 
@@ -753,12 +797,16 @@ public class RawGraphTransformer {
 			Collection<RawUnexpectedIndirectBranch> uibsSorted = null;
 			if (uibs != null)
 				uibsSorted = uibs.sortAndMerge();
-			writer.writeExecutionMetadataHeader(executionId, (uibsSorted == null) ? 0 : uibsSorted.size(), 0, 0,
-					(sges == null) ? 0 : sges.size());
+			writer.writeExecutionMetadataHeader(executionId, (uibsSorted == null) ? 0 : uibsSorted.size(), 0,
+					(sscs == null) ? 0 : sscs.size(), (sges == null) ? 0 : sges.size());
 			if (uibsSorted != null) {
 				for (RawUnexpectedIndirectBranch uib : uibsSorted)
 					writer.writeUIB(uib.getClusterEdgeIndex(), uib.isAdmitted(), uib.getTraversalCount(),
 							uib.getInstanceCount());
+			}
+			if (sscs != null) {
+				for (RawSuspiciousSystemCall ssc : sscs)
+					writer.writeSSC(ssc.sysnum, ssc.exitEdge.getEdgeIndex());
 			}
 			if (sges != null) {
 				for (RawSuspiciousGencodeEntry sge : sges)
@@ -776,7 +824,8 @@ public class RawGraphTransformer {
 				uibsSorted = uibsMain.sortAndMerge();
 			}
 			writer.writeExecutionMetadataHeader(executionId, uibsSorted == null ? 0 : uibsSorted.size(),
-					uibIntervals.size(), sscs.size(), (sgesMain == null) ? 0 : sgesMain.size());
+					uibIntervals.size(), (sscsMain == null) ? 0 : sscsMain.size(),
+					(sgesMain == null) ? 0 : sgesMain.size());
 			if (uibsSorted != null) {
 				for (RawUnexpectedIndirectBranch uib : uibsSorted)
 					writer.writeUIB(uib.getClusterEdgeIndex(), uib.isAdmitted(), uib.getTraversalCount(),
@@ -786,8 +835,9 @@ public class RawGraphTransformer {
 				writer.writeUIBInterval(interval.key.type.id, interval.key.span, interval.count,
 						interval.maxConsecutive);
 			}
-			for (RawSuspiciousSystemCall ssc : sscs) {
-				writer.writeSSC(ssc.sysnum, ssc.uibCount, ssc.suibCount);
+			if (sscsMain != null) {
+				for (RawSuspiciousSystemCall ssc : sscsMain)
+					writer.writeSSC(ssc.sysnum, ssc.exitEdge.getEdgeIndex());
 			}
 			if (sgesMain != null) {
 				for (RawSuspiciousGencodeEntry sge : sgesMain)

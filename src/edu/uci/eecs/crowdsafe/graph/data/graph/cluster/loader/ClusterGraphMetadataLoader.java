@@ -118,9 +118,10 @@ public class ClusterGraphMetadataLoader {
 		for (int i = 0; i < sscCount; i++) {
 			long sscData = input.readLong();
 			int sysnum = (int) (sscData & 0xffffL);
-			int sscUibCount = (int) ((sscData >> 0x10) & 0xffffL);
-			int sscSuibCount = (int) ((sscData >> 0x20) & 0xffffL);
-			ClusterSSC ssc = new ClusterSSC(null /* edge is missing! */, sysnum, sscUibCount, sscSuibCount);
+			int edgeIndex = (int) ((sscData >> 0x10) & 0xfffffL);
+			int sscUibCount = 0; // old format: (int) ((sscData >> 0x10) & 0xffffL);
+			int sscSuibCount = 0; // old format: (int) ((sscData >> 0x20) & 0xffffL);
+			ClusterSSC ssc = new ClusterSSC(edgeList.get(edgeIndex), sysnum, sscUibCount, sscSuibCount);
 			execution.sscs.add(ssc);
 		}
 
