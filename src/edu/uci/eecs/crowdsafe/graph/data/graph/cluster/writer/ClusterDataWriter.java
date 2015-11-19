@@ -161,7 +161,11 @@ public class ClusterDataWriter<NodeType extends NodeIdentifier> {
 					}
 				}
 				for (ClusterSSC ssc : execution.sscs) {
-					writeSSC(ssc.sysnum, edgeIndexMap.get(ssc.suspicionRaisingEdge));
+					if (edgeIndexMap.get(ssc.suspicionRaisingEdge) == null)
+						Log.error("Failed to locate the index for the supicion-raising edge %s",
+								ssc.suspicionRaisingEdge);
+					else
+						writeSSC(ssc.sysnum, edgeIndexMap.get(ssc.suspicionRaisingEdge));
 					// old format: ssc.uibCount, ssc.suibCount);
 				}
 				for (ClusterSGE sge : execution.sges) {

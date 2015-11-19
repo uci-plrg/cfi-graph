@@ -63,10 +63,18 @@ public class ClusterMetadataExecution {
 		intervals.get(interval.type).add(interval);
 	}
 
-	public void retainMergedUIBs(Collection<Edge<ClusterNode<?>>> mergedEdges) {
+	public void retainMergedUIBs(Collection<Edge<ClusterNode<?>>> mergedEdges, boolean removeSuspiciousEdges) {
+		ClusterUIB uib;
+		boolean unmerged;
 		for (int i = uibs.size() - 1; i >= 0; i--) {
-			if (!mergedEdges.contains(uibs.get(i).edge)) {
-				Log.log("Removing UIB (%d) %s because it was not merged", uibs.get(i).traversalCount, uibs.get(i).edge);
+			uib = uibs.get(i);
+			if (!uib.isAdmitted && removeSuspiciousEdges) {
+				unmerged = !mergedEdges.remove(uib.edge);
+			} else {
+				unmerged = !mergedEdges.contains(uib.edge);
+			}
+			if (unmerged) {
+				Log.log("Removing UIB (%d) %s because it was not merged", uibs.get(i).traversalCount, uib.edge);
 				uibs.remove(i);
 			}
 		}

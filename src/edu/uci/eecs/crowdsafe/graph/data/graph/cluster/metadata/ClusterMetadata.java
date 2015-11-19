@@ -62,7 +62,7 @@ public class ClusterMetadata {
 		if (!isSingletonExecution())
 			throw new IllegalArgumentException("Can only retain merged UIBs on a singleton execution.");
 
-		rootSequence.executions.get(0).retainMergedUIBs(mergedEdges);
+		rootSequence.executions.get(0).retainMergedUIBs(mergedEdges, false);
 	}
 
 	public Graph.ProcessMetadata summarizeProcess() {
