@@ -55,6 +55,7 @@ enum EdgeType {
   UNEXPECTED_RETURN = 4;
   GENCODE_PERM = 5;
   GENCODE_WRITE = 6;
+  PROCESS_FORK = 7;
 }
 
 message UnreachableNode {

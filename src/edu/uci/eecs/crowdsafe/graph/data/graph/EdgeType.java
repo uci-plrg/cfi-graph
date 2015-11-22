@@ -29,7 +29,14 @@ public enum EdgeType {
 		public boolean isHighOrdinal(int ordinal) {
 			return (ordinal > 4);
 		}
-	};
+	},
+	PROCESS_FORK("F"){
+		@Override
+		public boolean isHighOrdinal(int ordinal) {
+			return (ordinal > 5);
+		}
+	}
+	;
 
 	public final String code;
 
@@ -57,6 +64,8 @@ public enum EdgeType {
 				return 3;
 			case GENCODE_WRITE:
 				return 4;
+			case PROCESS_FORK:
+				return 5;
 			default:
 				throw new IllegalArgumentException(String.format("Edges of type %s cannot be a cluster entry edge!",
 						this));
@@ -79,6 +88,8 @@ public enum EdgeType {
 				return Graph.EdgeType.GENCODE_PERM;
 			case GENCODE_WRITE:
 				return Graph.EdgeType.GENCODE_WRITE;
+			case PROCESS_FORK:
+				return Graph.EdgeType.INDIRECT; // hack!
 		}
 		throw new IllegalStateException("Unknown EdgeType " + this);
 	}
