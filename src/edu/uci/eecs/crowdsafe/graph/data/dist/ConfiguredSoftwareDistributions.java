@@ -36,8 +36,6 @@ public class ConfiguredSoftwareDistributions {
 
 	private static ConfiguredSoftwareDistributions INSTANCE;
 
-	// private static final String BLACK_BOX_OWNER_FILENAME = "anonymous-blackbox-owners.cfg";
-
 	public static final AutonomousSoftwareDistribution MAIN_PROGRAM = new AutonomousSoftwareDistribution(
 			"<main-program>", "main-program");
 	public static final AutonomousSoftwareDistribution SYSTEM_CLUSTER = new AutonomousSoftwareDistribution(
@@ -56,8 +54,6 @@ public class ConfiguredSoftwareDistributions {
 	public final Map<Long, Integer> sysnumsBySyscallHash = new HashMap<Long, Integer>();
 	public final Map<SoftwareUnit, AutonomousSoftwareDistribution> distributionsByUnit = new HashMap<SoftwareUnit, AutonomousSoftwareDistribution>();
 
-	// public final List<SoftwareUnit> anonymousBlackBoxOwners = new ArrayList<SoftwareUnit>();
-
 	private ConfiguredSoftwareDistributions(ClusterMode clusterMode, File configDir) {
 		this.clusterMode = clusterMode;
 		this.configDir = configDir;
@@ -74,27 +70,6 @@ public class ConfiguredSoftwareDistributions {
 		for (int i = 0; i < ClusterNode.SYSCALL_COUNT; i++)
 			sysnumsBySyscallHash.put(CrowdSafeTraceUtil.stringHash(String.format("syscall#%d", i)), i);
 	}
-
-	/**
-	 * <pre>
-	private void loadAnonymousBlackBoxOwners() throws IOException {
-		File blackBoxConfigFile = new File(configDir, BLACK_BOX_OWNER_FILENAME);
-		if (blackBoxConfigFile.exists() && blackBoxConfigFile.isFile()) {
-			BufferedReader input = new BufferedReader(new FileReader(blackBoxConfigFile));
-			try {
-				String line;
-				while ((line = input.readLine()) != null) {
-					SoftwareUnit ownerModuleName = establishUnitByFileSystemName(line);
-					ownerModuleName.setBlackBoxOwner(true);
-					distributionsByUnit.get(ownerModuleName).setBlackBoxOwner(true);
-					anonymousBlackBoxOwners.add(ownerModuleName);
-				}
-			} finally {
-				input.close();
-			}
-		}
-	}
-	 */
 
 	private void loadDistributions() {
 		if (clusterMode == ClusterMode.UNIT) {
