@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
 import edu.uci.eecs.crowdsafe.graph.data.results.Graph;
 
 public class ClusterMetadata {
@@ -58,7 +58,7 @@ public class ClusterMetadata {
 		return rootSequence.executions.get(0);
 	}
 
-	public void retainMergedUIBs(Collection<Edge<ClusterNode<?>>> mergedEdges) {
+	public void retainMergedUIBs(Collection<Edge<ModuleNode<?>>> mergedEdges) {
 		if (!isSingletonExecution())
 			throw new IllegalArgumentException("Can only retain merged UIBs on a singleton execution.");
 

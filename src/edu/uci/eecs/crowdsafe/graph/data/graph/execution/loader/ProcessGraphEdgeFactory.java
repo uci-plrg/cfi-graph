@@ -69,8 +69,8 @@ public class ProcessGraphEdgeFactory {
 		// Double check if tag1 and tag2 exist in the lookup file
 		if (fromNode == null) {
 			Log.log("Problem at edge index %d: missing 'from' node for tag 0x%x-v%d(%s) in edge to 0x%x-v%d(%s) of type %s on ordinal %d",
-					edgeIndex, fromTag, fromVersion, fromModule.unit.name, toTag, toVersion, toModule.unit.name,
-					edgeType, edgeOrdinal);
+					edgeIndex, fromTag, fromVersion, fromModule.name, toTag, toVersion, toModule.name, edgeType,
+					edgeOrdinal);
 			return;
 		}
 		if (toNode == null) {
@@ -79,19 +79,18 @@ public class ProcessGraphEdgeFactory {
 			// else {
 			// boolean fixed = false;
 			Log.log("Problem at edge index %d: missing 'to' node for tag 0x%x-v%d(%s) in edge #%d from 0x%x-v%d(%s) of type %s on ordinal %d",
-					edgeIndex, toTag, toVersion, toModule.unit.name, edgeIndex, fromTag, fromVersion,
-					fromModule.unit.name, edgeType, edgeOrdinal);
+					edgeIndex, toTag, toVersion, toModule.name, edgeIndex, fromTag, fromVersion, fromModule.name,
+					edgeType, edgeOrdinal);
 			return;
 			// }
 		}
 
-		if ((fromModule.unit != toModule.unit)
-				&& (loader.graph.getModuleGraphCluster(fromModule.unit) != loader.graph
-						.getModuleGraphCluster(toModule.unit))) {
+		if ((fromModule != toModule)
+				&& (loader.graph.getModuleGraph(fromModule) != loader.graph.getModuleGraph(toModule))) {
 			throw new InvalidGraphException(String.format(
 					"Error: a normal edge\n\t[%s - %s]\ncrosses between module %s and %s", fromNode, toNode,
-					loader.graph.getModuleGraphCluster(fromModule.unit).cluster.name,
-					loader.graph.getModuleGraphCluster(toModule.unit).cluster.name));
+					loader.graph.getModuleGraph(fromModule).module.name,
+					loader.graph.getModuleGraph(toModule).module.name));
 		}
 
 		Edge<ExecutionNode> existing = fromNode.getOutgoingEdge(toNode);

@@ -20,7 +20,7 @@ public interface GraphLoadEventListener {
 
 	void nodeCreation(Node<?> node);
 
-	void graphAddition(Node<?> node, ModuleGraphCluster<?> cluster);
+	void graphAddition(Node<?> node, ModuleGraph<?> cluster);
 
 	void edgeCreation(Edge<?> edge);
 }

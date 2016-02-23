@@ -79,7 +79,7 @@ public class ExecutionNode extends Node<ExecutionNode> {
 
 		@Override
 		public String toString() {
-			return String.format("%s(0x%x-v%d)", module.unit.filename, relativeTag, version);
+			return String.format("%s(0x%x-v%d)", module.filename, relativeTag, version);
 		}
 	}
 
@@ -95,8 +95,8 @@ public class ExecutionNode extends Node<ExecutionNode> {
 			long timestamp) {
 		Key key;
 		switch (metaNodeType) {
-			case CLUSTER_ENTRY:
-			case CLUSTER_EXIT:
+			case MODULE_ENTRY:
+			case MODULE_EXIT:
 				key = new Key(hash, 0, module);
 				break;
 			default:
@@ -129,7 +129,7 @@ public class ExecutionNode extends Node<ExecutionNode> {
 			return super.isModuleRelativeMismatch(other);
 
 		ExecutionNode n = (ExecutionNode) other;
-		if (key.module.unit.isAnonymous || n.key.module.unit.isAnonymous)
+		if (key.module.isAnonymous || n.key.module.isAnonymous)
 			return false;
 
 		return !(key.relativeTag == n.key.relativeTag) && key.module.equals(n.key.module) && (getType() == n.getType())
@@ -138,12 +138,12 @@ public class ExecutionNode extends Node<ExecutionNode> {
 
 	public String identify() {
 		switch (metaNodeType) {
-			case CLUSTER_ENTRY:
+			case MODULE_ENTRY:
 				return String.format("ClusterEntry(0x%x)", hash);
-			case CLUSTER_EXIT:
+			case MODULE_EXIT:
 				return String.format("ClusterExit(0x%x)", hash);
 			default:
-				return String.format("%s(0x%x-v%d|0x%x)", key.module.unit.filename, key.relativeTag, key.version, hash);
+				return String.format("%s(0x%x-v%d|0x%x)", key.module.filename, key.relativeTag, key.version, hash);
 		}
 	}
 
@@ -201,7 +201,7 @@ public class ExecutionNode extends Node<ExecutionNode> {
 		}
 		ExecutionNode node = (ExecutionNode) o;
 		if ((node.metaNodeType == metaNodeType)
-				&& ((metaNodeType == MetaNodeType.CLUSTER_ENTRY) || (metaNodeType == MetaNodeType.CLUSTER_EXIT))) {
+				&& ((metaNodeType == MetaNodeType.MODULE_ENTRY) || (metaNodeType == MetaNodeType.MODULE_EXIT))) {
 			return (node.hash == hash);
 		}
 
@@ -210,8 +210,8 @@ public class ExecutionNode extends Node<ExecutionNode> {
 
 	public int hashCode() {
 		switch (metaNodeType) {
-			case CLUSTER_ENTRY:
-			case CLUSTER_EXIT:
+			case MODULE_ENTRY:
+			case MODULE_EXIT:
 				final int prime = 31;
 				int result = super.hashCode();
 				result = prime * result + (int) (hash ^ (hash >>> 32));

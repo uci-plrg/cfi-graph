@@ -1,8 +1,8 @@
 package edu.uci.eecs.crowdsafe.graph.data.graph;
 
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.writer.ClusterDataWriter;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.writer.ModuleDataWriter;
 
-public class Edge<EndpointType extends Node<?>> implements ClusterDataWriter.Edge<EndpointType> {
+public class Edge<EndpointType extends Node<?>> implements ModuleDataWriter.Edge<EndpointType> {
 	private final EndpointType toNode;
 	private EdgeType edgeType;
 	private int ordinal;
@@ -49,12 +49,12 @@ public class Edge<EndpointType extends Node<?>> implements ClusterDataWriter.Edg
 	
 	@Override
 	public boolean isClusterEntry() {
-		return (fromNode.getType() == MetaNodeType.CLUSTER_ENTRY);
+		return (fromNode.getType() == MetaNodeType.MODULE_ENTRY);
 	}
 	
 	@Override
 	public boolean isClusterExit() {
-		return (toNode.getType() == MetaNodeType.CLUSTER_EXIT);
+		return (toNode.getType() == MetaNodeType.MODULE_EXIT);
 	}
 
 	public boolean isContinuation() {
@@ -70,7 +70,7 @@ public class Edge<EndpointType extends Node<?>> implements ClusterDataWriter.Edg
 	}
 
 	public boolean isCrossModule() {
-		return ((fromNode.getType() == MetaNodeType.CLUSTER_ENTRY) || (toNode.getType() == MetaNodeType.CLUSTER_EXIT));
+		return ((fromNode.getType() == MetaNodeType.MODULE_ENTRY) || (toNode.getType() == MetaNodeType.MODULE_EXIT));
 	}
 
 	public boolean isModuleRelativeEquivalent(Edge<?> other) {

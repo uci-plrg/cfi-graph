@@ -1,12 +1,12 @@
 package edu.uci.eecs.crowdsafe.graph.data.graph;
 
-import edu.uci.eecs.crowdsafe.graph.data.dist.SoftwareModule;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
 
 public interface NodeIdentifier {
 
 	long getHash();
 
-	SoftwareModule getModule();
+	ApplicationModule getModule();
 
 	int getRelativeTag();
 	

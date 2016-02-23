@@ -9,9 +9,9 @@ import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
 
-public class ClusterGraphEdgeFactory {
+public class ModuleGraphEdgeFactory {
 
 	private enum LookupType {
 		NORMAL,
@@ -21,12 +21,12 @@ public class ClusterGraphEdgeFactory {
 
 	private static final int ENTRY_BYTE_COUNT = 0x8;
 
-	private final List<ClusterNode<?>> nodeList;
+	private final List<ModuleNode<?>> nodeList;
 	private final LittleEndianInputStream input;
 
-	private final Map<Long, Edge<ClusterNode<?>>> existingEdges = new HashMap<Long, Edge<ClusterNode<?>>>();
+	private final Map<Long, Edge<ModuleNode<?>>> existingEdges = new HashMap<Long, Edge<ModuleNode<?>>>();
 
-	ClusterGraphEdgeFactory(List<ClusterNode<?>> nodeList, LittleEndianInputStream input) {
+	ModuleGraphEdgeFactory(List<ModuleNode<?>> nodeList, LittleEndianInputStream input) {
 		this.nodeList = nodeList;
 		this.input = input;
 	}
@@ -35,9 +35,9 @@ public class ClusterGraphEdgeFactory {
 		return input.ready(ENTRY_BYTE_COUNT);
 	}
 
-	Edge<ClusterNode<?>> createEdge() throws IOException {
+	Edge<ModuleNode<?>> createEdge() throws IOException {
 		long first = input.readLong();
-		Edge<ClusterNode<?>> edge = existingEdges.get(first);
+		Edge<ModuleNode<?>> edge = existingEdges.get(first);
 		if (edge != null) {
 			Log.log("Error: duplicate edge 0x%x", first);
 			return edge;
@@ -51,13 +51,13 @@ public class ClusterGraphEdgeFactory {
 		if ((type == EdgeType.GENCODE_PERM) || (type == EdgeType.GENCODE_WRITE))
 			toString();
 
-		ClusterNode<?> fromNode = nodeList.get(fromNodeIndex);
-		ClusterNode<?> toNode = nodeList.get(toNodeIndex);
+		ModuleNode<?> fromNode = nodeList.get(fromNodeIndex);
+		ModuleNode<?> toNode = nodeList.get(toNodeIndex);
 
 		// if ((fromNode.getModule().unit.isAnonymous) && (type == EdgeType.CALL_CONTINUATION))
 		// throw new IllegalStateException("Anonymous edges may not be call continuations!");
 
-		edge = new Edge<ClusterNode<?>>(fromNode, toNode, type, ordinal);
+		edge = new Edge<ModuleNode<?>>(fromNode, toNode, type, ordinal);
 		existingEdges.put(first, edge);
 
 		fromNode.addOutgoingEdge(edge);

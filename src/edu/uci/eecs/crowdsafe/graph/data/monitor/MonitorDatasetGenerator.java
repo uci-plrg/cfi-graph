@@ -16,19 +16,17 @@ import java.util.Random;
 import java.util.TreeMap;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
-import edu.uci.eecs.crowdsafe.graph.data.dist.AutonomousSoftwareDistribution;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ConfiguredSoftwareDistributions;
-import edu.uci.eecs.crowdsafe.graph.data.dist.SoftwareUnit;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
-import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraphCluster;
+import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Node;
 import edu.uci.eecs.crowdsafe.graph.data.graph.NodeList;
 import edu.uci.eecs.crowdsafe.graph.data.graph.OrdinalEdgeList;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterBasicBlock;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterNode;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.loader.ClusterGraphLoadSession;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleBasicBlock;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.loader.ModuleGraphLoadSession;
 import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDataSource;
 import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDirectory;
 
@@ -43,7 +41,7 @@ public class MonitorDatasetGenerator {
 		final int offset;
 		final long hash;
 		final int edgeCountWord;
-		final Edge<ClusterNode<?>> intraModuleEdges[];
+		final Edge<ModuleNode<?>> intraModuleEdges[];
 		final long calloutSites[];
 		final long exports[];
 
@@ -59,17 +57,17 @@ public class MonitorDatasetGenerator {
 		}
 	}
 
-	private static class OrderByRelativeTag implements Comparator<ClusterBasicBlock> {
+	private static class OrderByRelativeTag implements Comparator<ModuleBasicBlock> {
 		@Override
-		public int compare(ClusterBasicBlock first, ClusterBasicBlock second) {
+		public int compare(ModuleBasicBlock first, ModuleBasicBlock second) {
 			return (first.getRelativeTag() - second.getRelativeTag());
 		}
 	}
 
-	private static class OrderByModuleName implements Comparator<AutonomousSoftwareDistribution> {
+	private static class OrderByModuleName implements Comparator<ApplicationModule> {
 		@Override
-		public int compare(AutonomousSoftwareDistribution first, AutonomousSoftwareDistribution second) {
-			return first.getUnits().iterator().next().name.compareTo(second.getUnits().iterator().next().name);
+		public int compare(ApplicationModule first, ApplicationModule second) {
+			return first.name.compareTo(second.name);
 		}
 	}
 
@@ -112,14 +110,14 @@ public class MonitorDatasetGenerator {
 	private final File clusterDataDirectory;
 
 	private final ClusterTraceDataSource dataSource;
-	private final ClusterGraphLoadSession loadSession;
+	private final ModuleGraphLoadSession loadSession;
 
-	private final Map<SoftwareUnit, CatalogPointers> catalogPointers = new LinkedHashMap<SoftwareUnit, CatalogPointers>();
-	private final Map<ClusterBasicBlock, Integer> nodePointers = new LinkedHashMap<ClusterBasicBlock, Integer>();
+	private final Map<ApplicationModule, CatalogPointers> catalogPointers = new LinkedHashMap<ApplicationModule, CatalogPointers>();
+	private final Map<ModuleBasicBlock, Integer> nodePointers = new LinkedHashMap<ModuleBasicBlock, Integer>();
 	private final Map<Long, Integer> hashChainPointers = new HashMap<Long, Integer>();
 
-	private final List<AutonomousSoftwareDistribution> sortedImageClusters;
-	private final Map<Long, NodeList<ClusterNode<?>>> anonymousNodesBySortedHash;
+	private final List<ApplicationModule> sortedImageModules;
+	private final Map<Long, NodeList<ModuleNode<?>>> anonymousNodesBySortedHash;
 
 	private final AlarmConfiguration alarmConfiguration;
 
@@ -135,29 +133,28 @@ public class MonitorDatasetGenerator {
 		this.clusterDataDirectory = clusterDataDirectory;
 
 		dataSource = new ClusterTraceDirectory(clusterDataDirectory).loadExistingFiles();
-		loadSession = new ClusterGraphLoadSession(dataSource);
+		loadSession = new ModuleGraphLoadSession(dataSource);
 
 		OrderByModuleName nameOrder = new OrderByModuleName();
-		sortedImageClusters = new ArrayList<AutonomousSoftwareDistribution>();
-		for (AutonomousSoftwareDistribution cluster : dataSource.getReprsentedClusters()) {
-			if (cluster != ConfiguredSoftwareDistributions.ANONYMOUS_CLUSTER) {
-				if (cluster.isAnonymous())
+		sortedImageModules = new ArrayList<ApplicationModule>();
+		for (ApplicationModule module : dataSource.getReprsentedModules()) {
+			if (module != ApplicationModule.ANONYMOUS_MODULE) {
+				if (module.isAnonymous)
 					throw new IllegalArgumentException(String.format(
 							"Found a dynamic module that has not been integrated into the anonymous module: %s.\n"
 									+ "Please merge the graph before generating monitor data (unity merge is valid).",
-							cluster.name));
-				sortedImageClusters.add(cluster);
+							module.name));
+				sortedImageModules.add(module);
 			}
 		}
-		Collections.sort(sortedImageClusters, nameOrder);
-		imageIndexSize = sortedImageClusters.size() * 8;
+		Collections.sort(sortedImageModules, nameOrder);
+		imageIndexSize = sortedImageModules.size() * 8;
 
-		ModuleGraphCluster<ClusterNode<?>> anonymousGraph = loadSession
-				.loadClusterGraph(ConfiguredSoftwareDistributions.ANONYMOUS_CLUSTER);
+		ModuleGraph<ModuleNode<?>> anonymousGraph = loadSession.loadClusterGraph(ApplicationModule.ANONYMOUS_MODULE);
 		if (anonymousGraph == null) {
 			anonymousNodesBySortedHash = null;
 		} else {
-			anonymousNodesBySortedHash = new TreeMap<Long, NodeList<ClusterNode<?>>>(new OrderByHash());
+			anonymousNodesBySortedHash = new TreeMap<Long, NodeList<ModuleNode<?>>>(new OrderByHash());
 			for (Long hash : anonymousGraph.getGraphData().nodesByHash.keySet()) {
 				anonymousNodesBySortedHash.put(hash, anonymousGraph.getGraphData().nodesByHash.get(hash));
 			}
@@ -207,13 +204,12 @@ public class MonitorDatasetGenerator {
 	private void generateNameBlock() throws IOException {
 		LittleEndianCursorWriter writer = new LittleEndianCursorWriter(outputFiles.get(MonitorFileSegment.IMAGE_NAMES));
 		int baseOffset = imageIndexSize;
-		for (AutonomousSoftwareDistribution cluster : sortedImageClusters) {
-			SoftwareUnit unit = cluster.getUnits().iterator().next();
+		for (ApplicationModule module : sortedImageModules) {
 			CatalogPointers unitPointers = new CatalogPointers();
-			catalogPointers.put(unit, unitPointers);
+			catalogPointers.put(module, unitPointers);
 			unitPointers.namePointsTo = baseOffset + writer.getCursor();
 
-			writer.writeString(unit.name, ascii);
+			writer.writeString(module.name, ascii);
 		}
 		writer.alignData(4);
 		imageNamesSize = writer.getCursor();
@@ -223,29 +219,28 @@ public class MonitorDatasetGenerator {
 
 	private void generateModules() throws IOException {
 		LittleEndianCursorWriter writer = new LittleEndianCursorWriter(outputFiles.get(MonitorFileSegment.IMAGE_GRAPHS));
-		List<ClusterBasicBlock> nodeSorter = new ArrayList<ClusterBasicBlock>();
+		List<ModuleBasicBlock> nodeSorter = new ArrayList<ModuleBasicBlock>();
 		OrderByRelativeTag sortOrder = new OrderByRelativeTag();
-		List<Edge<ClusterNode<?>>> intraModule = new ArrayList<Edge<ClusterNode<?>>>();
-		List<Edge<ClusterNode<?>>> callSites = new ArrayList<Edge<ClusterNode<?>>>();
-		List<Edge<ClusterNode<?>>> exports = new ArrayList<Edge<ClusterNode<?>>>();
+		List<Edge<ModuleNode<?>>> intraModule = new ArrayList<Edge<ModuleNode<?>>>();
+		List<Edge<ModuleNode<?>>> callSites = new ArrayList<Edge<ModuleNode<?>>>();
+		List<Edge<ModuleNode<?>>> exports = new ArrayList<Edge<ModuleNode<?>>>();
 		int baseOffset = imageIndexSize + imageNamesSize;
 
-		for (AutonomousSoftwareDistribution cluster : sortedImageClusters) {
+		for (ApplicationModule module : sortedImageModules) {
 			nodeSorter.clear();
-			SoftwareUnit unit = cluster.getUnits().iterator().next();
 
-			ModuleGraphCluster<?> graph = loadSession.loadClusterGraph(cluster);
+			ModuleGraph<?> graph = loadSession.loadClusterGraph(module);
 			for (Node<?> node : graph.getAllNodes()) {
 				if ((node.getType() == MetaNodeType.NORMAL) || (node.getType() == MetaNodeType.RETURN)
 						|| (node.getType() == MetaNodeType.SINGLETON))
-					nodeSorter.add((ClusterBasicBlock) node);
+					nodeSorter.add((ModuleBasicBlock) node);
 			}
 			Collections.sort(nodeSorter, sortOrder);
 
 			int edgeCountWord;
 			int intraModuleWord;
 			boolean isIntraModuleIndirectTarget;
-			for (ClusterBasicBlock node : nodeSorter) {
+			for (ModuleBasicBlock node : nodeSorter) {
 				nodePointers.put(node, baseOffset + writer.getCursor());
 
 				intraModule.clear();
@@ -253,10 +248,10 @@ public class MonitorDatasetGenerator {
 				exports.clear();
 				isIntraModuleIndirectTarget = false;
 
-				OrdinalEdgeList<ClusterNode<?>> edges = node.getOutgoingEdges();
+				OrdinalEdgeList<ModuleNode<?>> edges = node.getOutgoingEdges();
 				try {
-					for (Edge<ClusterNode<?>> edge : edges) {
-						if (edge.getToNode().getType() == MetaNodeType.CLUSTER_EXIT) {
+					for (Edge<ModuleNode<?>> edge : edges) {
+						if (edge.getToNode().getType() == MetaNodeType.MODULE_EXIT) {
 							callSites.add(edge);
 						} else {
 							intraModule.add(edge);
@@ -268,8 +263,8 @@ public class MonitorDatasetGenerator {
 
 				edges = node.getIncomingEdges();
 				try {
-					for (Edge<ClusterNode<?>> edge : edges) {
-						if (edge.getFromNode().getType() == MetaNodeType.CLUSTER_ENTRY) {
+					for (Edge<ModuleNode<?>> edge : edges) {
+						if (edge.getFromNode().getType() == MetaNodeType.MODULE_ENTRY) {
 							exports.add(edge);
 						} else {
 							isIntraModuleIndirectTarget |= (edge.getEdgeType() == EdgeType.INDIRECT);
@@ -302,7 +297,7 @@ public class MonitorDatasetGenerator {
 				writer.writeInt(edgeCountWord);
 
 				writer.writeLong(node.getHash());
-				for (Edge<ClusterNode<?>> edge : intraModule) {
+				for (Edge<ModuleNode<?>> edge : intraModule) {
 					if (edge.getToNode().getRelativeTag() > 0xfffffff)
 						throw new IllegalStateException(
 								"Relative tag exceeds intra-module edge format limit 0xfffffff!");
@@ -311,19 +306,19 @@ public class MonitorDatasetGenerator {
 					intraModuleWord |= (edge.getOrdinal() << 0x1c);
 					writer.writeInt(intraModuleWord);
 				}
-				for (Edge<ClusterNode<?>> edge : callSites) {
+				for (Edge<ModuleNode<?>> edge : callSites) {
 					writer.writeLong(edge.getToNode().getHash());
 				}
-				for (Edge<ClusterNode<?>> edge : exports) {
+				for (Edge<ModuleNode<?>> edge : exports) {
 					writer.writeLong(edge.getFromNode().getHash());
 				}
 			}
 
-			CatalogPointers unitPointers = catalogPointers.get(unit);
+			CatalogPointers unitPointers = catalogPointers.get(module);
 			unitPointers.dataPointsTo = baseOffset + writer.getCursor();
 
 			writer.writeInt(nodeSorter.size());
-			for (ClusterBasicBlock node : nodeSorter) {
+			for (ModuleBasicBlock node : nodeSorter) {
 				writer.writeInt(node.getRelativeTag());
 				writer.writeInt(nodePointers.get(node));
 			}
@@ -335,16 +330,12 @@ public class MonitorDatasetGenerator {
 
 	private void generateImageIndex() throws IOException {
 		LittleEndianCursorWriter writer = new LittleEndianCursorWriter(outputFiles.get(MonitorFileSegment.IMAGE_INDEX));
-		for (AutonomousSoftwareDistribution cluster : sortedImageClusters) {
-			if (cluster.getUnitCount() > 1)
-				throw new UnsupportedOperationException("Monitor dataset currently only supports singleton clusters.");
-
-			SoftwareUnit unit = cluster.getUnits().iterator().next();
-			CatalogPointers unitPointers = catalogPointers.get(unit);
+		for (ApplicationModule module : sortedImageModules) {
+			CatalogPointers unitPointers = catalogPointers.get(module);
 			writer.writeInt(unitPointers.namePointsTo);
 			writer.writeInt(unitPointers.dataPointsTo);
 
-			catalogPointers.put(unit, unitPointers);
+			catalogPointers.put(module, unitPointers);
 		}
 		writer.conclude();
 	}
@@ -353,30 +344,30 @@ public class MonitorDatasetGenerator {
 		int cursor = anonymousNodesBySortedHash.size() * 12; // (8) hash, (4) pointer to node chain
 
 		List<AnonymousNodeEntry> entries = new ArrayList<AnonymousNodeEntry>();
-		Map<ClusterBasicBlock, Integer> entryOffsets = new HashMap<ClusterBasicBlock, Integer>();
-		List<Edge<ClusterNode<?>>> intraModule = new ArrayList<Edge<ClusterNode<?>>>();
-		List<Edge<ClusterNode<?>>> callSites = new ArrayList<Edge<ClusterNode<?>>>();
-		List<Edge<ClusterNode<?>>> exports = new ArrayList<Edge<ClusterNode<?>>>();
-		ClusterBasicBlock node;
+		Map<ModuleBasicBlock, Integer> entryOffsets = new HashMap<ModuleBasicBlock, Integer>();
+		List<Edge<ModuleNode<?>>> intraModule = new ArrayList<Edge<ModuleNode<?>>>();
+		List<Edge<ModuleNode<?>>> callSites = new ArrayList<Edge<ModuleNode<?>>>();
+		List<Edge<ModuleNode<?>>> exports = new ArrayList<Edge<ModuleNode<?>>>();
+		ModuleBasicBlock node;
 		AnonymousNodeEntry entry;
 		int edgeCountWord;
 		int intraModuleWord;
 		int lastIndexInChain;
-		for (Map.Entry<Long, NodeList<ClusterNode<?>>> hashGroup : anonymousNodesBySortedHash.entrySet()) {
+		for (Map.Entry<Long, NodeList<ModuleNode<?>>> hashGroup : anonymousNodesBySortedHash.entrySet()) {
 			hashChainPointers.put(hashGroup.getKey(), cursor);
 			lastIndexInChain = hashGroup.getValue().size() - 1;
 			for (int i = 0; i <= lastIndexInChain; i++) {
-				node = (ClusterBasicBlock) hashGroup.getValue().get(i);
+				node = (ModuleBasicBlock) hashGroup.getValue().get(i);
 				entryOffsets.put(node, cursor);
 
 				intraModule.clear();
 				callSites.clear();
 				exports.clear();
 
-				OrdinalEdgeList<ClusterNode<?>> edges = node.getOutgoingEdges();
+				OrdinalEdgeList<ModuleNode<?>> edges = node.getOutgoingEdges();
 				try {
-					for (Edge<ClusterNode<?>> edge : edges) {
-						if (edge.getToNode().getType() == MetaNodeType.CLUSTER_EXIT) {
+					for (Edge<ModuleNode<?>> edge : edges) {
+						if (edge.getToNode().getType() == MetaNodeType.MODULE_EXIT) {
 							callSites.add(edge);
 						} else {
 							intraModule.add(edge);
@@ -388,8 +379,8 @@ public class MonitorDatasetGenerator {
 
 				edges = node.getIncomingEdges();
 				try {
-					for (Edge<ClusterNode<?>> edge : edges) {
-						if (edge.getFromNode().getType() == MetaNodeType.CLUSTER_ENTRY) {
+					for (Edge<ModuleNode<?>> edge : edges) {
+						if (edge.getFromNode().getType() == MetaNodeType.MODULE_ENTRY) {
 							exports.add(edge);
 							if ((edge.getEdgeType() == EdgeType.GENCODE_PERM)
 									|| (edge.getEdgeType() == EdgeType.GENCODE_WRITE))
@@ -414,15 +405,15 @@ public class MonitorDatasetGenerator {
 				entries.add(entry);
 
 				for (int j = 0; j < intraModule.size(); j++) {
-					Edge<ClusterNode<?>> edge = intraModule.get(j);
+					Edge<ModuleNode<?>> edge = intraModule.get(j);
 					entry.intraModuleEdges[j] = edge;
 				}
 				for (int j = 0; j < callSites.size(); j++) {
-					Edge<ClusterNode<?>> edge = callSites.get(j);
+					Edge<ModuleNode<?>> edge = callSites.get(j);
 					entry.calloutSites[j] = edge.getToNode().getHash();
 				}
 				for (int j = 0; j < exports.size(); j++) {
-					Edge<ClusterNode<?>> edge = exports.get(j);
+					Edge<ModuleNode<?>> edge = exports.get(j);
 					entry.exports[j] = edge.getFromNode().getHash();
 				}
 

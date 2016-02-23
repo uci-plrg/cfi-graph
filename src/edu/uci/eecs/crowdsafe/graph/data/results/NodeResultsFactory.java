@@ -19,8 +19,8 @@ public class NodeResultsFactory {
 	}
 
 	public Graph.Node buildNode(Node<?> node) {
-		moduleBuilder.clear().setName(node.getModule().unit.filename);
-		moduleBuilder.setVersion(node.getModule().unit.version);
+		moduleBuilder.clear().setName(node.getModule().filename);
+		moduleBuilder.setVersion(node.getModule().version);
 		nodeBuilder.clear().setModule(moduleBuilder.build());
 		nodeBuilder.setRelativeTag((int) node.getRelativeTag());
 		nodeBuilder.setTagVersion(node.getInstanceId());

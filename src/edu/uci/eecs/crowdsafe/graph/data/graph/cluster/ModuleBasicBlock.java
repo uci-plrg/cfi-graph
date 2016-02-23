@@ -1,18 +1,19 @@
 package edu.uci.eecs.crowdsafe.graph.data.graph.cluster;
 
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Node;
 
-public class ClusterBasicBlock extends ClusterNode<ClusterBasicBlock.Key> {
+public class ModuleBasicBlock extends ModuleNode<ModuleBasicBlock.Key> {
 
 	public static class Key<ClusterBasicBlock> implements Node.Key {
-		public final ClusterModule module;
+		public final ApplicationModule module;
 
 		public final long relativeTag;
 
 		public final int instanceId;
 
-		public Key(ClusterModule module, long relativeTag, int instanceId) {
+		public Key(ApplicationModule module, long relativeTag, int instanceId) {
 			this.module = module;
 			this.relativeTag = relativeTag;
 			this.instanceId = instanceId;
@@ -60,7 +61,7 @@ public class ClusterBasicBlock extends ClusterNode<ClusterBasicBlock.Key> {
 
 		@Override
 		public String toString() {
-			return String.format("%s(0x%x-i%d)", module.unit.name, relativeTag, instanceId);
+			return String.format("%s(0x%x-i%d)", module.name, relativeTag, instanceId);
 		}
 	}
 
@@ -68,23 +69,23 @@ public class ClusterBasicBlock extends ClusterNode<ClusterBasicBlock.Key> {
 
 	private final long hash;
 
-	public ClusterBasicBlock(Key key, long hash, MetaNodeType type) {
+	public ModuleBasicBlock(Key key, long hash, MetaNodeType type) {
 		super(key);
 		this.type = type;
 		this.hash = hash;
 
-		if ((type == MetaNodeType.CLUSTER_ENTRY) && (type == MetaNodeType.CLUSTER_EXIT))
+		if ((type == MetaNodeType.MODULE_ENTRY) && (type == MetaNodeType.MODULE_EXIT))
 			throw new IllegalArgumentException(String.format(
-					"Basic block node may not have type %s or %s. Given type is %s.", MetaNodeType.CLUSTER_ENTRY,
-					MetaNodeType.CLUSTER_EXIT, type));
+					"Basic block node may not have type %s or %s. Given type is %s.", MetaNodeType.MODULE_ENTRY,
+					MetaNodeType.MODULE_EXIT, type));
 	}
 
-	public ClusterBasicBlock(ClusterModule module, long relativeTag, int instanceId, long hash, MetaNodeType type) {
+	public ModuleBasicBlock(ApplicationModule module, long relativeTag, int instanceId, long hash, MetaNodeType type) {
 		this(new Key(module, relativeTag, instanceId), hash, type);
 	}
 
 	@Override
-	public ClusterModule getModule() {
+	public ApplicationModule getModule() {
 		return key.module;
 	}
 
@@ -110,10 +111,10 @@ public class ClusterBasicBlock extends ClusterNode<ClusterBasicBlock.Key> {
 
 	@Override
 	public boolean isModuleRelativeEquivalent(Node<?> other) {
-		if (!(other instanceof ClusterBasicBlock))
+		if (!(other instanceof ModuleBasicBlock))
 			return super.isModuleRelativeEquivalent(other);
 
-		ClusterBasicBlock n = (ClusterBasicBlock) other;
+		ModuleBasicBlock n = (ModuleBasicBlock) other;
 
 		return (key.relativeTag == n.key.relativeTag) && key.module.isEquivalent(n.key.module)
 				&& (getType() == n.getType()) && (getHash() == n.getHash());
@@ -121,11 +122,11 @@ public class ClusterBasicBlock extends ClusterNode<ClusterBasicBlock.Key> {
 
 	@Override
 	public boolean isModuleRelativeMismatch(Node<?> other) {
-		if (!(other instanceof ClusterBasicBlock))
+		if (!(other instanceof ModuleBasicBlock))
 			return super.isModuleRelativeMismatch(other);
 
-		ClusterBasicBlock n = (ClusterBasicBlock) other;
-		if (key.module.unit.isAnonymous || n.key.module.unit.isAnonymous)
+		ModuleBasicBlock n = (ModuleBasicBlock) other;
+		if (key.module.isAnonymous || n.key.module.isAnonymous)
 			return false;
 
 		return !(key.relativeTag == n.key.relativeTag) && key.module.equals(n.key.module) && (getType() == n.getType())
@@ -133,7 +134,7 @@ public class ClusterBasicBlock extends ClusterNode<ClusterBasicBlock.Key> {
 	}
 
 	public String identify() {
-		return String.format("%s(0x%x-i%d|0x%x|%s)", key.module.unit.filename, key.relativeTag, key.instanceId, hash,
+		return String.format("%s(0x%x-i%d|0x%x|%s)", key.module.filename, key.relativeTag, key.instanceId, hash,
 				type.code);
 	}
 

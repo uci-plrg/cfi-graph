@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -22,16 +21,14 @@ import edu.uci.eecs.crowdsafe.common.io.LittleEndianOutputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
-import edu.uci.eecs.crowdsafe.graph.data.dist.AutonomousSoftwareDistribution;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ConfiguredSoftwareDistributions;
-import edu.uci.eecs.crowdsafe.graph.data.dist.SoftwareModule;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModuleSet;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterBasicBlock;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterBoundaryNode;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterModule;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterNode;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.writer.ClusterDataWriter;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleBasicBlock;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleBoundaryNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.writer.ModuleDataWriter;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ModuleInstance;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ProcessExecutionGraph;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ProcessExecutionModuleSet;
@@ -87,9 +84,9 @@ public class RawGraphTransformer {
 			uibsByEdgeIndex.clear();
 
 			for (RawUnexpectedIndirectBranch uib : uibsByRawEdgeIndex.values()) {
-				RawUnexpectedIndirectBranch match = uibsByEdgeIndex.get(uib.getClusterEdgeIndex());
+				RawUnexpectedIndirectBranch match = uibsByEdgeIndex.get(uib.getModuleEdgeIndex());
 				if (match == null) {
-					uibsByEdgeIndex.put(uib.getClusterEdgeIndex(), uib);
+					uibsByEdgeIndex.put(uib.getModuleEdgeIndex(), uib);
 				} else {
 					match.merge(uib);
 				}
@@ -103,7 +100,7 @@ public class RawGraphTransformer {
 	private static final OptionArgumentMap.StringOption logOption = OptionArgumentMap.createStringOption('l');
 	private static final OptionArgumentMap.StringOption inputOption = OptionArgumentMap.createStringOption('i');
 	private static final OptionArgumentMap.StringOption outputOption = OptionArgumentMap.createStringOption('o');
-	private static final OptionArgumentMap.BooleanOption unitClusterOption = OptionArgumentMap.createBooleanOption('u',
+	private static final OptionArgumentMap.BooleanOption unitModuleOption = OptionArgumentMap.createBooleanOption('u',
 			true);
 
 	private final ArgumentStack args;
@@ -115,23 +112,23 @@ public class RawGraphTransformer {
 	private File outputDir = null;
 	private ExecutionTraceDataSource dataSource = null;
 	private ProcessExecutionModuleSet executionModules = null;
-	private ClusterDataWriter.Directory<IndexedClusterNode> graphWriters = null;
-	private final Map<AutonomousSoftwareDistribution, RawClusterData> nodesByCluster = new HashMap<AutonomousSoftwareDistribution, RawClusterData>();
-	private final Map<AutonomousSoftwareDistribution, Map<RawEdge, RawEdge>> edgesByCluster = new HashMap<AutonomousSoftwareDistribution, Map<RawEdge, RawEdge>>();
+	private ModuleDataWriter.Directory<IndexedModuleNode> graphWriters = null;
+	private final Map<ApplicationModule, RawModuleData> nodesByModule = new HashMap<ApplicationModule, RawModuleData>();
+	private final Map<ApplicationModule, Map<RawEdge, RawEdge>> edgesByModule = new HashMap<ApplicationModule, Map<RawEdge, RawEdge>>();
 
-	private final Set<AutonomousSoftwareDistribution> metadataClusters = new HashSet<AutonomousSoftwareDistribution>();
-	private final Map<AutonomousSoftwareDistribution, UnexpectedIndirectBranches> uibsByCluster = new HashMap<AutonomousSoftwareDistribution, UnexpectedIndirectBranches>();
-	private final Map<AutonomousSoftwareDistribution, Set<RawSuspiciousGencodeEntry>> sgesByCluster = new HashMap<AutonomousSoftwareDistribution, Set<RawSuspiciousGencodeEntry>>();
-	private final Map<AutonomousSoftwareDistribution, Set<RawSuspiciousSystemCall>> sscsByCluster = new HashMap<AutonomousSoftwareDistribution, Set<RawSuspiciousSystemCall>>();
+	private final Set<ApplicationModule> metadataModules = new HashSet<ApplicationModule>();
+	private final Map<ApplicationModule, UnexpectedIndirectBranches> uibsByModule = new HashMap<ApplicationModule, UnexpectedIndirectBranches>();
+	private final Map<ApplicationModule, Set<RawSuspiciousGencodeEntry>> sgesByModule = new HashMap<ApplicationModule, Set<RawSuspiciousGencodeEntry>>();
+	private final Map<ApplicationModule, Set<RawSuspiciousSystemCall>> sscsByModule = new HashMap<ApplicationModule, Set<RawSuspiciousSystemCall>>();
 
-	private final Map<RawTag, IndexedClusterNode> nodesByRawTag = new HashMap<RawTag, IndexedClusterNode>();
+	private final Map<RawTag, IndexedModuleNode> nodesByRawTag = new HashMap<RawTag, IndexedModuleNode>();
 	private final Map<RawTag, Integer> fakeAnonymousModuleTags = new HashMap<RawTag, Integer>();
-	private int fakeAnonymousTagIndex = ClusterNode.FAKE_ANONYMOUS_TAG_START;
-	private final Map<Long, IndexedClusterNode> syscallSingletons = new HashMap<Long, IndexedClusterNode>();
-	private final Map<AutonomousSoftwareDistribution, ClusterNode<?>> blackBoxSingletons = new HashMap<AutonomousSoftwareDistribution, ClusterNode<?>>();
+	private int fakeAnonymousTagIndex = ModuleNode.FAKE_ANONYMOUS_TAG_START;
+	private final Map<Long, IndexedModuleNode> syscallSingletons = new HashMap<Long, IndexedModuleNode>();
+	private final Map<ApplicationModule, ModuleNode<?>> blackBoxSingletons = new HashMap<ApplicationModule, ModuleNode<?>>();
 
 	private int mainModuleStartAddress;
-	private AutonomousSoftwareDistribution mainCluster;
+	private ApplicationModule mainModule;
 	private final Map<RawUnexpectedIndirectBranchInterval.Key, RawUnexpectedIndirectBranchInterval> uibIntervals = new HashMap<RawUnexpectedIndirectBranchInterval.Key, RawUnexpectedIndirectBranchInterval>();
 	private final LinkedList<RawUnexpectedIndirectBranch> intraModuleUIBQueue = new LinkedList<RawUnexpectedIndirectBranch>();
 	private final LinkedList<RawUnexpectedIndirectBranch> crossModuleUIBQueue = new LinkedList<RawUnexpectedIndirectBranch>();
@@ -142,7 +139,7 @@ public class RawGraphTransformer {
 	public RawGraphTransformer(ArgumentStack args) {
 		this.args = args;
 
-		OptionArgumentMap.populateOptions(args, verboseOption, logOption, inputOption, outputOption, unitClusterOption);
+		OptionArgumentMap.populateOptions(args, verboseOption, logOption, inputOption, outputOption, unitModuleOption);
 	}
 
 	private void run() {
@@ -172,12 +169,7 @@ public class RawGraphTransformer {
 			CrowdSafeConfiguration
 					.initialize(new CrowdSafeConfiguration.Environment[] { CrowdSafeConfiguration.Environment.CROWD_SAFE_COMMON_DIR });
 
-			ConfiguredSoftwareDistributions.ClusterMode clusterMode;
-			if (unitClusterOption.hasValue())
-				clusterMode = ConfiguredSoftwareDistributions.ClusterMode.UNIT;
-			else
-				clusterMode = ConfiguredSoftwareDistributions.ClusterMode.GROUP;
-			ConfiguredSoftwareDistributions.initialize(clusterMode);
+			ApplicationModuleSet.initialize();
 
 			for (String inputPath : pathList) {
 				try {
@@ -192,12 +184,12 @@ public class RawGraphTransformer {
 
 					File outputDir;
 					if (outputOption.getValue() == null) {
-						outputDir = new File(runDir, "cluster");
+						outputDir = new File(runDir, "module");
 					} else {
 						outputDir = new File(outputOption.getValue());
 					}
 					outputDir.mkdirs();
-					graphWriters = new ClusterDataWriter.Directory<IndexedClusterNode>(outputDir,
+					graphWriters = new ModuleDataWriter.Directory<IndexedModuleNode>(outputDir,
 							dataSource.getProcessName());
 					Log.log("Transform %s to %s", runDir.getAbsolutePath(), outputDir.getAbsolutePath());
 					transformGraph();
@@ -213,11 +205,11 @@ public class RawGraphTransformer {
 				dataSource = null;
 				executionModules = null;
 				graphWriters = null;
-				nodesByCluster.clear();
-				edgesByCluster.clear();
+				nodesByModule.clear();
+				edgesByModule.clear();
 				nodesByRawTag.clear();
 				fakeAnonymousModuleTags.clear();
-				fakeAnonymousTagIndex = ClusterNode.FAKE_ANONYMOUS_TAG_START;
+				fakeAnonymousTagIndex = ModuleNode.FAKE_ANONYMOUS_TAG_START;
 				syscallSingletons.clear();
 				blackBoxSingletons.clear();
 			}
@@ -241,7 +233,6 @@ public class RawGraphTransformer {
 		writeNodes();
 		writeEdges();
 		writeMetadata();
-		writeModules();
 		graphWriters.flush();
 	}
 
@@ -251,11 +242,9 @@ public class RawGraphTransformer {
 			return;
 
 		long mainModuleStartAddress = input.readLong();
-		ModuleInstance mainModule = executionModules.getModule(mainModuleStartAddress, 0,
-				ExecutionTraceStreamType.GRAPH_NODE);
-		mainCluster = ConfiguredSoftwareDistributions.getInstance().distributionsByUnit.get(mainModule.unit);
-		graphWriters.establishClusterWriters(establishClusterData(mainCluster));
-		Log.log("Main cluster is %s", mainCluster);
+		mainModule = executionModules.getModule(mainModuleStartAddress, 0, ExecutionTraceStreamType.GRAPH_NODE);
+		graphWriters.establishModuleWriters(establishModuleData(mainModule));
+		Log.log("Main module is %s", mainModule);
 
 		RawGraphEntry.OneWordFactory factory = new RawGraphEntry.OneWordFactory(input);
 
@@ -313,28 +302,27 @@ public class RawGraphTransformer {
 		LittleEndianInputStream input = dataSource.getLittleEndianInputStream(streamType);
 		RawGraphEntry.TwoWordFactory factory = new RawGraphEntry.TwoWordFactory(input);
 
-		RawClusterData nodeData = establishClusterData(ConfiguredSoftwareDistributions.SYSTEM_CLUSTER);
-		nodeData.moduleList.establishModule(ModuleInstance.SYSTEM_MODULE.unit);
-		ClusterNode<?> node = new ClusterBasicBlock(SoftwareModule.SYSTEM_MODULE, ClusterNode.PROCESS_ENTRY_SINGLETON,
-				0, ClusterNode.PROCESS_ENTRY_SINGLETON, MetaNodeType.SINGLETON);
-		IndexedClusterNode nodeId = nodeData.addNode(node);
-		RawTag rawTag = new RawTag(ClusterNode.PROCESS_ENTRY_SINGLETON, 0);
-		fakeAnonymousModuleTags.put(rawTag, ClusterNode.PROCESS_ENTRY_SINGLETON);
+		RawModuleData nodeData = establishModuleData(ModuleInstance.SYSTEM_MODULE);
+		ModuleNode<?> node = new ModuleBasicBlock(ApplicationModule.SYSTEM_MODULE, ModuleNode.PROCESS_ENTRY_SINGLETON,
+				0, ModuleNode.PROCESS_ENTRY_SINGLETON, MetaNodeType.SINGLETON);
+		IndexedModuleNode nodeId = nodeData.addNode(node);
+		RawTag rawTag = new RawTag(ModuleNode.PROCESS_ENTRY_SINGLETON, 0);
+		fakeAnonymousModuleTags.put(rawTag, ModuleNode.PROCESS_ENTRY_SINGLETON);
 		nodesByRawTag.put(rawTag, nodeId);
-		graphWriters.establishClusterWriters(nodesByCluster.get(ConfiguredSoftwareDistributions.SYSTEM_CLUSTER));
+		graphWriters.establishModuleWriters(nodesByModule.get(ApplicationModule.SYSTEM_MODULE));
 
-		node = new ClusterBasicBlock(SoftwareModule.SYSTEM_MODULE, ClusterNode.SYSTEM_SINGLETON, 0,
-				ClusterNode.SYSTEM_SINGLETON, MetaNodeType.SINGLETON);
+		node = new ModuleBasicBlock(ApplicationModule.SYSTEM_MODULE, ModuleNode.SYSTEM_SINGLETON, 0,
+				ModuleNode.SYSTEM_SINGLETON, MetaNodeType.SINGLETON);
 		nodeId = nodeData.addNode(node);
-		rawTag = new RawTag(ClusterNode.SYSTEM_SINGLETON, 0);
-		fakeAnonymousModuleTags.put(rawTag, ClusterNode.SYSTEM_SINGLETON);
+		rawTag = new RawTag(ModuleNode.SYSTEM_SINGLETON, 0);
+		fakeAnonymousModuleTags.put(rawTag, ModuleNode.SYSTEM_SINGLETON);
 		nodesByRawTag.put(rawTag, nodeId);
 
-		node = new ClusterBasicBlock(SoftwareModule.SYSTEM_MODULE, ClusterNode.CHILD_PROCESS_SINGLETON, 0,
-				ClusterNode.CHILD_PROCESS_SINGLETON, MetaNodeType.SINGLETON);
+		node = new ModuleBasicBlock(ApplicationModule.SYSTEM_MODULE, ModuleNode.CHILD_PROCESS_SINGLETON, 0,
+				ModuleNode.CHILD_PROCESS_SINGLETON, MetaNodeType.SINGLETON);
 		nodeId = nodeData.addNode(node);
-		rawTag = new RawTag(ClusterNode.CHILD_PROCESS_SINGLETON, 0);
-		fakeAnonymousModuleTags.put(rawTag, ClusterNode.CHILD_PROCESS_SINGLETON);
+		rawTag = new RawTag(ModuleNode.CHILD_PROCESS_SINGLETON, 0);
+		fakeAnonymousModuleTags.put(rawTag, ModuleNode.CHILD_PROCESS_SINGLETON);
 		nodesByRawTag.put(rawTag, nodeId);
 
 		long entryIndex = -1L;
@@ -348,18 +336,17 @@ public class RawGraphTransformer {
 
 			ModuleInstance moduleInstance;
 			if (nodeType == MetaNodeType.SINGLETON) {
-				if ((absoluteTag == ClusterNode.PROCESS_ENTRY_SINGLETON)
-						|| (absoluteTag == ClusterNode.SYSTEM_SINGLETON)
-						|| (absoluteTag == ClusterNode.CHILD_PROCESS_SINGLETON)) {
+				if ((absoluteTag == ModuleNode.PROCESS_ENTRY_SINGLETON) || (absoluteTag == ModuleNode.SYSTEM_SINGLETON)
+						|| (absoluteTag == ModuleNode.CHILD_PROCESS_SINGLETON)) {
 					moduleInstance = ModuleInstance.SYSTEM;
-				} else if ((absoluteTag >= ClusterNode.BLACK_BOX_SINGLETON_START)
-						&& (absoluteTag < ClusterNode.BLACK_BOX_SINGLETON_END)) {
+				} else if ((absoluteTag >= ModuleNode.BLACK_BOX_SINGLETON_START)
+						&& (absoluteTag < ModuleNode.BLACK_BOX_SINGLETON_END)) {
 					moduleInstance = ModuleInstance.ANONYMOUS;
 				} else {
 					throw new InvalidGraphException("Error: unknown singleton with tag 0x%x!", absoluteTag);
 				}
-			} else if ((absoluteTag >= ClusterNode.BLACK_BOX_SINGLETON_START) // FIXME: temporary hack
-					&& (absoluteTag < ClusterNode.BLACK_BOX_SINGLETON_END)) {
+			} else if ((absoluteTag >= ModuleNode.BLACK_BOX_SINGLETON_START) // FIXME: temporary hack
+					&& (absoluteTag < ModuleNode.BLACK_BOX_SINGLETON_END)) {
 				moduleInstance = ModuleInstance.ANONYMOUS;
 			} else {
 				moduleInstance = executionModules.getModule(absoluteTag, entryIndex, streamType);
@@ -369,32 +356,25 @@ public class RawGraphTransformer {
 				continue;
 			}
 
-			AutonomousSoftwareDistribution cluster = ConfiguredSoftwareDistributions.getInstance().distributionsByUnit
-					.get(moduleInstance.unit);
+			ApplicationModule module = ApplicationModuleSet.getInstance().modulesByName.get(moduleInstance.name);
 
 			int relativeTag;
-			ClusterModule clusterModule;
-			AutonomousSoftwareDistribution blackBoxOwner = null;
+			ModuleBoundaryNode.HashLabel blackBoxLabel = null;
+			ApplicationModule blackBoxOwner = null;
 			boolean isNewBlackBoxSingleton = false;
-			if (cluster.isAnonymous()) {
-				if ((absoluteTag == ClusterNode.PROCESS_ENTRY_SINGLETON)
-						|| (absoluteTag == ClusterNode.SYSTEM_SINGLETON)
-						|| (absoluteTag == ClusterNode.CHILD_PROCESS_SINGLETON)) {
-					clusterModule = establishClusterData(ConfiguredSoftwareDistributions.SYSTEM_CLUSTER).moduleList
-							.establishModule(SoftwareModule.SYSTEM_MODULE.unit);
-					cluster = ConfiguredSoftwareDistributions.SYSTEM_CLUSTER;
+			if (module.isAnonymous) {
+				if ((absoluteTag == ModuleNode.PROCESS_ENTRY_SINGLETON) || (absoluteTag == ModuleNode.SYSTEM_SINGLETON)
+						|| (absoluteTag == ModuleNode.CHILD_PROCESS_SINGLETON)) {
+					module = ApplicationModule.SYSTEM_MODULE;
 					moduleInstance = ModuleInstance.SYSTEM;
 				} else {
-					clusterModule = establishClusterData(ConfiguredSoftwareDistributions.ANONYMOUS_CLUSTER).moduleList
-							.establishModule(SoftwareModule.ANONYMOUS_MODULE.unit);
-					cluster = ConfiguredSoftwareDistributions.ANONYMOUS_CLUSTER;
+					module = ApplicationModule.ANONYMOUS_MODULE;
 					moduleInstance = ModuleInstance.ANONYMOUS;
 					if (nodeType == MetaNodeType.SINGLETON) {
-						blackBoxOwner = ConfiguredSoftwareDistributions.getInstance().getClusterByAnonymousEntryHash(
-								nodeEntry.second);
-						if (blackBoxOwner == null)
+						if (!ApplicationModuleSet.getInstance().isToAnonymous(nodeEntry.second)) {
 							new InvalidGraphException("Error: cannot find the owner of black box with entry 0x%x!",
 									nodeEntry.second);
+						}
 
 						// TODO: removing extraneous nodes requires patching the data set for the whole
 						// anonymous module
@@ -402,49 +382,29 @@ public class RawGraphTransformer {
 				}
 
 				RawTag lookup = new RawTag(absoluteTag, tagVersion);
-				Integer tag = null;
-				if (blackBoxOwner == null) {
-					tag = fakeAnonymousModuleTags.get(lookup);
-				} else { // this is not necessary now, there is only one instance of the singleton
-					ClusterNode<?> singleton = blackBoxSingletons.get(blackBoxOwner);
-					if (singleton != null) {
-						tag = singleton.getRelativeTag();
-						fakeAnonymousModuleTags.put(lookup, tag);
-					}
-				}
-
+				Integer tag = fakeAnonymousModuleTags.get(lookup);
 				if (tag == null) {
-					if (blackBoxOwner != null) {
-						isNewBlackBoxSingleton = true;
-						tag = (int) absoluteTag;
-					} else {
-						tag = fakeAnonymousTagIndex++;
-						fakeAnonymousModuleTags.put(lookup, tag);
-						Log.log("Mapping 0x%x-v%d => 0x%x for module %s (hash 0x%x)", absoluteTag, tagVersion, tag,
-								moduleInstance.unit.filename, nodeEntry.second);
-					}
+					tag = fakeAnonymousTagIndex++;
+					fakeAnonymousModuleTags.put(lookup, tag);
+					Log.log("Mapping 0x%x-v%d => 0x%x for module %s (hash 0x%x)", absoluteTag, tagVersion, tag,
+							moduleInstance.filename, nodeEntry.second);
 				}
 				relativeTag = tag;
 			} else {
 				relativeTag = (int) (absoluteTag - moduleInstance.start);
 			}
 
-			nodeData = establishClusterData(cluster);
-			if ((blackBoxOwner == null) || isNewBlackBoxSingleton) {
-				clusterModule = establishClusterData(cluster).moduleList.establishModule(moduleInstance.unit);
-				node = new ClusterBasicBlock(clusterModule, relativeTag, cluster.isAnonymous() ? 0 : tagVersion,
-						nodeEntry.second, nodeType);
-				if (isNewBlackBoxSingleton)
-					blackBoxSingletons.put(blackBoxOwner, node);
-				nodeId = nodeData.addNode(node);
-			} else {
-				node = blackBoxSingletons.get(blackBoxOwner);
-				nodeId = nodeData.getNode(node.getKey());
-			}
+			nodeData = establishModuleData(module);
+			// moduleModule = establishModuleData(module).moduleList.establishModule(moduleInstance.unit);
+			node = new ModuleBasicBlock(module, relativeTag, module.isAnonymous ? 0 : tagVersion, nodeEntry.second,
+					nodeType);
+			if (isNewBlackBoxSingleton)
+				blackBoxSingletons.put(blackBoxOwner, node);
+			nodeId = nodeData.addNode(node);
 
-			graphWriters.establishClusterWriters(nodesByCluster.get(cluster));
+			graphWriters.establishModuleWriters(nodesByModule.get(module));
 
-			if (cluster.isAnonymous())
+			if (module.isAnonymous)
 				nodesByRawTag.put(new RawTag(absoluteTag, tagVersion), nodeId);
 		}
 	}
@@ -460,7 +420,7 @@ public class RawGraphTransformer {
 
 			long absoluteFromTag = CrowdSafeTraceUtil.getTag(edgeEntry.first);
 			int fromTagVersion = CrowdSafeTraceUtil.getTagVersion(edgeEntry.first);
-			IndexedClusterNode fromNodeId = identifyNode(absoluteFromTag, fromTagVersion, entryIndex, streamType);
+			IndexedModuleNode fromNodeId = identifyNode(absoluteFromTag, fromTagVersion, entryIndex, streamType);
 
 			EdgeType type = CrowdSafeTraceUtil.getTagEdgeType(edgeEntry.first);
 			int ordinal = CrowdSafeTraceUtil.getEdgeOrdinal(edgeEntry.first);
@@ -471,7 +431,7 @@ public class RawGraphTransformer {
 
 			long absoluteToTag = CrowdSafeTraceUtil.getTag(edgeEntry.second);
 			int toTagVersion = CrowdSafeTraceUtil.getTagVersion(edgeEntry.second);
-			IndexedClusterNode toNodeId = identifyNode(absoluteToTag, toTagVersion, entryIndex, streamType);
+			IndexedModuleNode toNodeId = identifyNode(absoluteToTag, toTagVersion, entryIndex, streamType);
 
 			// if (type == EdgeType.UNEXPECTED_RETURN)
 			// Log.log("Loaded unexpected return from 0x%x to 0x%x", absoluteFromTag, absoluteToTag);
@@ -481,32 +441,30 @@ public class RawGraphTransformer {
 					Log.log("Error: both nodes missing in edge (0x%x-v%d) -%s-%d-> (0x%x-v%d)", absoluteFromTag,
 							fromTagVersion, type.code, ordinal, absoluteToTag, toTagVersion);
 				} else {
-					Log.log("Error in cluster %s: missing 'from' node: (0x%x-v%d) -%s-%d-> (0x%x-v%d)",
-							toNodeId.cluster.getUnitFilename(), absoluteFromTag, fromTagVersion, type.code, ordinal,
+					Log.log("Error in module %s: missing 'from' node: (0x%x-v%d) -%s-%d-> (0x%x-v%d)",
+							toNodeId.module.filename, absoluteFromTag, fromTagVersion, type.code, ordinal,
 							absoluteToTag, toTagVersion);
 				}
 				continue;
 			}
 
 			if (toNodeId == null) {
-				Log.log("Error in cluster %s: missing 'to' node: (0x%x-v%d) -%s-%d-> (0x%x-v%d)",
-						fromNodeId.cluster.getUnitFilename(), absoluteFromTag, fromTagVersion, type.code, ordinal,
-						absoluteToTag, toTagVersion);
+				Log.log("Error in module %s: missing 'to' node: (0x%x-v%d) -%s-%d-> (0x%x-v%d)",
+						fromNodeId.module.filename, absoluteFromTag, fromTagVersion, type.code, ordinal, absoluteToTag,
+						toTagVersion);
 				continue;
 			}
 
 			if (type.isHighOrdinal(ordinal))
-				Log.log("Warning: high ordinal in %s edge (0x%x-v%d) -%s-%d-> (0x%x-v%d)",
-						fromNodeId.cluster.getUnitFilename(), absoluteFromTag, fromTagVersion, type.code, ordinal,
-						absoluteToTag, toTagVersion);
+				Log.log("Warning: high ordinal in %s edge (0x%x-v%d) -%s-%d-> (0x%x-v%d)", fromNodeId.module.filename,
+						absoluteFromTag, fromTagVersion, type.code, ordinal, absoluteToTag, toTagVersion);
 
-			if (fromNodeId.cluster == toNodeId.cluster) {
+			if (fromNodeId.module == toNodeId.module) {
 				RawEdge edge;
-				if (fromNodeId.cluster.isAnonymous())
-					edge = addEdge(ConfiguredSoftwareDistributions.ANONYMOUS_CLUSTER, fromNodeId, toNodeId, type,
-							ordinal);
+				if (fromNodeId.module.isAnonymous)
+					edge = addEdge(ApplicationModule.ANONYMOUS_MODULE, fromNodeId, toNodeId, type, ordinal);
 				else
-					edge = addEdge(fromNodeId.cluster, fromNodeId, toNodeId, type, ordinal);
+					edge = addEdge(fromNodeId.module, fromNodeId, toNodeId, type, ordinal);
 
 				RawUnexpectedIndirectBranch uib = null;
 				while (!intraModuleUIBQueue.isEmpty() && (intraModuleUIBQueue.peekFirst().rawEdgeIndex == entryIndex))
@@ -515,7 +473,7 @@ public class RawGraphTransformer {
 						&& intraModuleSuspiciousSyscallQueue.peekFirst().edgeIndex == entryIndex) {
 					RawSuspiciousSystemCall ssc = intraModuleSuspiciousSyscallQueue.removeFirst();
 					ssc.entryEdge = ssc.exitEdge = edge;
-					establishSSCs(fromNodeId.cluster).add(ssc);
+					establishSSCs(fromNodeId.module).add(ssc);
 
 					// Log.log("SSC: raising edge: %s (index %d); next IM SSC edge index is %d",
 					// edge,
@@ -525,14 +483,14 @@ public class RawGraphTransformer {
 				}
 
 				if (uib != null) {
-					uib.clusterEdge = edge;
-					establishUIBs(fromNodeId.cluster).add(uib);
+					uib.moduleEdge = edge;
+					establishUIBs(fromNodeId.module).add(uib);
 				}
 			} else {
-				Log.log("Error! Intra-module edge from %s to %s crosses a cluster boundary (%s to %s)!",
-						fromNodeId.node, toNodeId.node, fromNodeId.cluster, toNodeId.cluster);
+				Log.log("Error! Intra-module edge from %s to %s crosses a module boundary (%s to %s)!",
+						fromNodeId.node, toNodeId.node, fromNodeId.module, toNodeId.module);
 				// throw new IllegalStateException(String.format(
-				// "Intra-module edge from %s to %s crosses a cluster boundary!", fromNodeId.node, toNodeId.node));
+				// "Intra-module edge from %s to %s crosses a module boundary!", fromNodeId.node, toNodeId.node));
 			}
 		}
 	}
@@ -554,11 +512,11 @@ public class RawGraphTransformer {
 				ordinal = 3;
 			else if (type == EdgeType.GENCODE_WRITE)
 				ordinal = 4;
-			IndexedClusterNode fromNodeId = identifyNode(absoluteFromTag, fromTagVersion, entryIndex, streamType);
+			IndexedModuleNode fromNodeId = identifyNode(absoluteFromTag, fromTagVersion, entryIndex, streamType);
 
 			long absoluteToTag = CrowdSafeTraceUtil.getTag(edgeEntry.second);
 			int toTagVersion = CrowdSafeTraceUtil.getTagVersion(edgeEntry.second);
-			IndexedClusterNode toNodeId = identifyNode(absoluteToTag, toTagVersion, entryIndex, streamType);
+			IndexedModuleNode toNodeId = identifyNode(absoluteToTag, toTagVersion, entryIndex, streamType);
 
 			long hash = edgeEntry.third;
 
@@ -568,63 +526,63 @@ public class RawGraphTransformer {
 							absoluteFromTag, fromTagVersion, absoluteToTag, toTagVersion);
 				} else {
 					Log.log("Error: missing 'from' node 0x%x-v%d in cross-module %s edge to %s(0x%x-v%d) ",
-							absoluteFromTag, fromTagVersion, type.code, toNodeId.cluster.getUnitFilename(),
-							absoluteToTag, toTagVersion);
+							absoluteFromTag, fromTagVersion, type.code, toNodeId.module.filename, absoluteToTag,
+							toTagVersion);
 				}
 				continue;
 			}
 
 			if (toNodeId == null) {
 				Log.log("Error: missing 'to' node 0x%x-v%d in cross-module %s edge from %s 0x%x-v%d", absoluteToTag,
-						toTagVersion, type.code, fromNodeId.cluster.getUnitFilename(), absoluteFromTag, fromTagVersion);
+						toTagVersion, type.code, fromNodeId.module.filename, absoluteFromTag, fromTagVersion);
 				continue;
 			}
 
 			if (type.isHighOrdinal(ordinal))
 				Log.log("Warning: high ordinal in cross-module edge %s(0x%x-v%d) -%s-%d-> %s(0x%x-v%d)",
-						fromNodeId.cluster.getUnitFilename(), absoluteFromTag, fromTagVersion, type.code, ordinal,
-						toNodeId.cluster.getUnitFilename(), absoluteToTag, toTagVersion);
+						fromNodeId.module.filename, absoluteFromTag, fromTagVersion, type.code, ordinal,
+						toNodeId.module.filename, absoluteToTag, toTagVersion);
 
-			if (fromNodeId.cluster == toNodeId.cluster) { // TODO: why is this possible? what about UIB?
-				addEdge(fromNodeId.cluster, fromNodeId, toNodeId, type, ordinal);
-			} else if (fromNodeId.cluster.isAnonymous() && toNodeId.cluster.isAnonymous()) {
-				addEdge(ConfiguredSoftwareDistributions.ANONYMOUS_CLUSTER, fromNodeId, toNodeId, type, ordinal);
+			if (fromNodeId.module == toNodeId.module) { // TODO: why is this possible? what about UIB?
+				addEdge(fromNodeId.module, fromNodeId, toNodeId, type, ordinal);
+			} else if (fromNodeId.module.isAnonymous && toNodeId.module.isAnonymous) {
+				addEdge(ApplicationModule.ANONYMOUS_MODULE, fromNodeId, toNodeId, type, ordinal);
 			} else {
-				ClusterBoundaryNode entry = new ClusterBoundaryNode(hash, MetaNodeType.CLUSTER_ENTRY);
-				IndexedClusterNode entryId = nodesByCluster.get(toNodeId.cluster).addNode(entry);
-				RawEdge rawEntry = addEdge(toNodeId.cluster, entryId, toNodeId, type, type.getClusterEntryOrdinal());
+				ModuleBoundaryNode entry = new ModuleBoundaryNode(hash, MetaNodeType.MODULE_ENTRY);
+				IndexedModuleNode entryId = nodesByModule.get(toNodeId.module).addNode(entry);
+				RawEdge rawEntry = addEdge(toNodeId.module, entryId, toNodeId, type, type.getModuleEntryOrdinal());
 
-				ClusterBoundaryNode exit = new ClusterBoundaryNode(hash, MetaNodeType.CLUSTER_EXIT);
-				IndexedClusterNode exitId = nodesByCluster.get(fromNodeId.cluster).addNode(exit);
-				RawEdge rawExit = addEdge(fromNodeId.cluster, fromNodeId, exitId, type, ordinal);
+				ModuleBoundaryNode exit = new ModuleBoundaryNode(hash, MetaNodeType.MODULE_EXIT);
+				IndexedModuleNode exitId = nodesByModule.get(fromNodeId.module).addNode(exit);
+				RawEdge rawExit = addEdge(fromNodeId.module, fromNodeId, exitId, type, ordinal);
 
-				if (toNodeId.cluster == ConfiguredSoftwareDistributions.SYSTEM_CLUSTER)
-					Log.log("Creating an edge into the system cluster: %s", rawExit);
+				if (toNodeId.module == ApplicationModule.SYSTEM_MODULE)
+					Log.log("Creating an edge into the system module: %s", rawExit);
 
 				RawUnexpectedIndirectBranch uib = null;
 				while ((!crossModuleUIBQueue.isEmpty()) && (crossModuleUIBQueue.peekFirst().rawEdgeIndex == entryIndex))
 					uib = crossModuleUIBQueue.removeFirst();
 
 				if (uib != null) {
-					uib.clusterEdge = rawEntry;
-					establishUIBs(toNodeId.cluster).add(uib);
+					uib.moduleEdge = rawEntry;
+					establishUIBs(toNodeId.module).add(uib);
 
 					uib = new RawUnexpectedIndirectBranch(uib);
-					uib.clusterEdge = rawExit;
-					establishUIBs(fromNodeId.cluster).add(uib);
+					uib.moduleEdge = rawExit;
+					establishUIBs(fromNodeId.module).add(uib);
 				}
 
 				if ((!gencodeEntryQueue.isEmpty()) && (gencodeEntryQueue.peekFirst().edgeIndex == entryIndex)) {
 					RawSuspiciousGencodeEntry gencodeEntry = gencodeEntryQueue.removeFirst();
-					gencodeEntry.clusterEdge = rawExit;
-					establishSGEs(fromNodeId.cluster).add(gencodeEntry);
+					gencodeEntry.edge = rawExit;
+					establishSGEs(fromNodeId.module).add(gencodeEntry);
 				}
 				while (!crossModuleSuspiciousSyscallQueue.isEmpty()
 						&& crossModuleSuspiciousSyscallQueue.peekFirst().edgeIndex == entryIndex) {
 					RawSuspiciousSystemCall ssc = crossModuleSuspiciousSyscallQueue.removeFirst();
 					ssc.entryEdge = rawEntry;
 					ssc.exitEdge = rawExit;
-					establishSSCs(fromNodeId.cluster).add(ssc);
+					establishSSCs(fromNodeId.module).add(ssc);
 
 					// Log.log("SSC: raising edges: [%s] and [%s] (index %d); next CM SSC edge index: %d", rawEntry,
 					// rawExit, ssc.edgeIndex, crossModuleSuspiciousSyscallQueue.isEmpty() ? 0
@@ -634,74 +592,74 @@ public class RawGraphTransformer {
 		}
 	}
 
-	private RawClusterData establishClusterData(AutonomousSoftwareDistribution cluster) {
-		RawClusterData data = nodesByCluster.get(cluster);
+	private RawModuleData establishModuleData(ApplicationModule module) {
+		RawModuleData data = nodesByModule.get(module);
 		if (data == null) {
-			data = new RawClusterData(cluster);
-			nodesByCluster.put(cluster, data);
+			data = new RawModuleData(module, nodesByModule.size());
+			nodesByModule.put(module, data);
 		}
 		return data;
 	}
 
-	private RawEdge addEdge(AutonomousSoftwareDistribution cluster, IndexedClusterNode fromNode,
-			IndexedClusterNode toNode, EdgeType type, int ordinal) {
-		Map<RawEdge, RawEdge> clusterEdges = establishEdgeSet(cluster);
+	private RawEdge addEdge(ApplicationModule module, IndexedModuleNode fromNode, IndexedModuleNode toNode,
+			EdgeType type, int ordinal) {
+		Map<RawEdge, RawEdge> moduleEdges = establishEdgeSet(module);
 		RawEdge edge = new RawEdge(fromNode, toNode, type, ordinal);
-		RawEdge existing = clusterEdges.get(edge);
+		RawEdge existing = moduleEdges.get(edge);
 		if (existing == null) {
-			clusterEdges.put(edge, edge);
+			moduleEdges.put(edge, edge);
 			return edge;
 		} else {
 			return existing;
 		}
 	}
 
-	private Map<RawEdge, RawEdge> establishEdgeSet(AutonomousSoftwareDistribution cluster) {
-		Map<RawEdge, RawEdge> set = edgesByCluster.get(cluster);
+	private Map<RawEdge, RawEdge> establishEdgeSet(ApplicationModule module) {
+		Map<RawEdge, RawEdge> set = edgesByModule.get(module);
 		if (set == null) {
 			set = new HashMap<RawEdge, RawEdge>();
-			edgesByCluster.put(cluster, set);
+			edgesByModule.put(module, set);
 		}
 		return set;
 	}
 
-	private UnexpectedIndirectBranches establishUIBs(AutonomousSoftwareDistribution cluster) {
-		UnexpectedIndirectBranches uibs = uibsByCluster.get(cluster);
+	private UnexpectedIndirectBranches establishUIBs(ApplicationModule module) {
+		UnexpectedIndirectBranches uibs = uibsByModule.get(module);
 		if (uibs == null) {
 			uibs = new UnexpectedIndirectBranches();
-			uibsByCluster.put(cluster, uibs);
-			metadataClusters.add(cluster);
+			uibsByModule.put(module, uibs);
+			metadataModules.add(module);
 		}
 		return uibs;
 	}
 
-	private Set<RawSuspiciousGencodeEntry> establishSGEs(AutonomousSoftwareDistribution cluster) {
-		Set<RawSuspiciousGencodeEntry> sges = sgesByCluster.get(cluster);
+	private Set<RawSuspiciousGencodeEntry> establishSGEs(ApplicationModule module) {
+		Set<RawSuspiciousGencodeEntry> sges = sgesByModule.get(module);
 		if (sges == null) {
 			sges = new HashSet<RawSuspiciousGencodeEntry>();
-			sgesByCluster.put(cluster, sges);
-			metadataClusters.add(cluster);
+			sgesByModule.put(module, sges);
+			metadataModules.add(module);
 		}
 		return sges;
 	}
 
-	private Set<RawSuspiciousSystemCall> establishSSCs(AutonomousSoftwareDistribution cluster) {
-		Set<RawSuspiciousSystemCall> sscs = sscsByCluster.get(cluster);
+	private Set<RawSuspiciousSystemCall> establishSSCs(ApplicationModule module) {
+		Set<RawSuspiciousSystemCall> sscs = sscsByModule.get(module);
 		if (sscs == null) {
 			sscs = new HashSet<RawSuspiciousSystemCall>();
-			sscsByCluster.put(cluster, sscs);
-			metadataClusters.add(cluster);
+			sscsByModule.put(module, sscs);
+			metadataModules.add(module);
 		}
 		return sscs;
 	}
 
-	private IndexedClusterNode identifyNode(long absoluteTag, int tagVersion, long entryIndex,
+	private IndexedModuleNode identifyNode(long absoluteTag, int tagVersion, long entryIndex,
 			ExecutionTraceStreamType streamType) {
-		if ((absoluteTag >= ClusterNode.SYSCALL_SINGLETON_START) && (absoluteTag < ClusterNode.SYSCALL_SINGLETON_END)) {
-			IndexedClusterNode nodeId = syscallSingletons.get(absoluteTag);
+		if ((absoluteTag >= ModuleNode.SYSCALL_SINGLETON_START) && (absoluteTag < ModuleNode.SYSCALL_SINGLETON_END)) {
+			IndexedModuleNode nodeId = syscallSingletons.get(absoluteTag);
 			if (nodeId == null) {
-				RawClusterData nodeData = establishClusterData(ConfiguredSoftwareDistributions.SYSTEM_CLUSTER);
-				ClusterBasicBlock node = new ClusterBasicBlock(SoftwareModule.SYSTEM_MODULE, absoluteTag, 0, 0L,
+				RawModuleData nodeData = establishModuleData(ApplicationModule.SYSTEM_MODULE);
+				ModuleBasicBlock node = new ModuleBasicBlock(ApplicationModule.SYSTEM_MODULE, absoluteTag, 0, 0L,
 						MetaNodeType.SINGLETON);
 				nodeId = nodeData.addNode(node);
 				syscallSingletons.put(absoluteTag, nodeId);
@@ -710,65 +668,56 @@ public class RawGraphTransformer {
 		}
 
 		ModuleInstance moduleInstance;
-		AutonomousSoftwareDistribution cluster;
-		if ((absoluteTag == ClusterNode.PROCESS_ENTRY_SINGLETON) || (absoluteTag == ClusterNode.SYSTEM_SINGLETON)
-				|| (absoluteTag == ClusterNode.CHILD_PROCESS_SINGLETON)) {
+		ApplicationModule module;
+		if ((absoluteTag == ModuleNode.PROCESS_ENTRY_SINGLETON) || (absoluteTag == ModuleNode.SYSTEM_SINGLETON)
+				|| (absoluteTag == ModuleNode.CHILD_PROCESS_SINGLETON)) {
 			moduleInstance = ModuleInstance.SYSTEM;
-			cluster = ConfiguredSoftwareDistributions.SYSTEM_CLUSTER;
-		} else if ((absoluteTag >= ClusterNode.BLACK_BOX_SINGLETON_START)
-				&& (absoluteTag < ClusterNode.BLACK_BOX_SINGLETON_END)) {
+			module = ApplicationModule.SYSTEM_MODULE;
+		} else if ((absoluteTag >= ModuleNode.BLACK_BOX_SINGLETON_START)
+				&& (absoluteTag < ModuleNode.BLACK_BOX_SINGLETON_END)) {
 			return nodesByRawTag.get(new RawTag(absoluteTag, tagVersion));
 		} else {
 			moduleInstance = executionModules.getModule(absoluteTag, entryIndex, streamType);
 			if (moduleInstance == null)
 				return null;
-			if (moduleInstance.unit.isAnonymous)
-				cluster = ConfiguredSoftwareDistributions.ANONYMOUS_CLUSTER;
+			if (moduleInstance.isAnonymous)
+				module = ApplicationModule.ANONYMOUS_MODULE;
 			else
-				cluster = ConfiguredSoftwareDistributions.getInstance().distributionsByUnit.get(moduleInstance.unit);
+				module = ApplicationModuleSet.getInstance().modulesByName.get(moduleInstance.name);
 		}
 
-		ClusterModule clusterModule = null;
-		RawClusterData nodeData = nodesByCluster.get(cluster);
-		if (nodeData == null) {
-			toString();
-		} else {
-			clusterModule = nodeData.moduleList.getModule(moduleInstance.unit);
-		}
+		// ApplicationModule moduleModule = nodesByModule.get(module).moduleList.getModule(moduleInstance.unit);
 
-		// ClusterModule clusterModule = nodesByCluster.get(cluster).moduleList.getModule(moduleInstance.unit);
-
-		if (moduleInstance.unit.isAnonymous) {
-			IndexedClusterNode node = nodesByRawTag.get(new RawTag(absoluteTag, tagVersion));
+		if (moduleInstance.isAnonymous) {
+			IndexedModuleNode node = nodesByRawTag.get(new RawTag(absoluteTag, tagVersion));
 			return node;
 		}
 
 		long tag = (absoluteTag - moduleInstance.start);
-		ClusterBasicBlock.Key key = new ClusterBasicBlock.Key(clusterModule, tag, tagVersion);
-		RawClusterData clusterData = nodesByCluster.get(cluster);
-		if (clusterData == null)
+		ModuleBasicBlock.Key key = new ModuleBasicBlock.Key(module, tag, tagVersion);
+		RawModuleData moduleData = nodesByModule.get(module);
+		if (moduleData == null)
 			return null;
-		IndexedClusterNode node = clusterData.getNode(key);
+		IndexedModuleNode node = moduleData.getNode(key);
 		return node;
 	}
 
 	private void writeNodes() throws IOException {
-		for (AutonomousSoftwareDistribution cluster : nodesByCluster.keySet()) {
-			ClusterDataWriter<IndexedClusterNode> writer = graphWriters.getWriter(cluster);
-			for (IndexedClusterNode node : nodesByCluster.get(cluster).getSortedNodeList()) {
+		for (ApplicationModule module : nodesByModule.keySet()) {
+			ModuleDataWriter<IndexedModuleNode> writer = graphWriters.getWriter(module);
+			for (IndexedModuleNode node : nodesByModule.get(module).getSortedNodeList()) {
 				writer.writeNode(node);
 			}
 		}
 	}
 
 	private void writeEdges() throws IOException {
-		for (Map.Entry<AutonomousSoftwareDistribution, Map<RawEdge, RawEdge>> clusterEdgeList : edgesByCluster
-				.entrySet()) {
-			// List<RawEdge> orderedEdges = new ArrayList<RawEdge>(clusterEdgeList.getValue().values());
+		for (Map.Entry<ApplicationModule, Map<RawEdge, RawEdge>> moduleEdgeList : edgesByModule.entrySet()) {
+			// List<RawEdge> orderedEdges = new ArrayList<RawEdge>(moduleEdgeList.getValue().values());
 			// Collections.sort(orderedEdges, RawEdge.EdgeIndexSorter.INSTANCE);
 			int edgeIndex = 0;
-			ClusterDataWriter<IndexedClusterNode> writer = graphWriters.getWriter(clusterEdgeList.getKey());
-			for (RawEdge edge : clusterEdgeList.getValue().values()) {
+			ModuleDataWriter<IndexedModuleNode> writer = graphWriters.getWriter(moduleEdgeList.getKey());
+			for (RawEdge edge : moduleEdgeList.getValue().values()) {
 				edge.setEdgeIndex(edgeIndex++);
 				writer.writeEdge(edge);
 			}
@@ -780,18 +729,18 @@ public class RawGraphTransformer {
 		Set<RawSuspiciousGencodeEntry> sgesMain = null;
 		Set<RawSuspiciousSystemCall> sscsMain = null;
 		UUID executionId = UUID.randomUUID();
-		for (AutonomousSoftwareDistribution cluster : metadataClusters) {
-			UnexpectedIndirectBranches uibs = uibsByCluster.get(cluster);
-			Set<RawSuspiciousGencodeEntry> sges = sgesByCluster.get(cluster);
-			Set<RawSuspiciousSystemCall> sscs = sscsByCluster.get(cluster);
-			if (cluster == mainCluster) {
+		for (ApplicationModule module : metadataModules) {
+			UnexpectedIndirectBranches uibs = uibsByModule.get(module);
+			Set<RawSuspiciousGencodeEntry> sges = sgesByModule.get(module);
+			Set<RawSuspiciousSystemCall> sscs = sscsByModule.get(module);
+			if (module == mainModule) {
 				uibsMain = uibs;
 				sgesMain = sges;
 				sscsMain = sscs;
 				continue;
 			}
 
-			ClusterDataWriter<IndexedClusterNode> writer = graphWriters.getWriter(cluster);
+			ModuleDataWriter<IndexedModuleNode> writer = graphWriters.getWriter(module);
 			writer.writeMetadataHeader(false);
 			writer.writeSequenceMetadataHeader(1, true);
 			Collection<RawUnexpectedIndirectBranch> uibsSorted = null;
@@ -801,7 +750,7 @@ public class RawGraphTransformer {
 					(sscs == null) ? 0 : sscs.size(), (sges == null) ? 0 : sges.size());
 			if (uibsSorted != null) {
 				for (RawUnexpectedIndirectBranch uib : uibsSorted)
-					writer.writeUIB(uib.getClusterEdgeIndex(), uib.isAdmitted(), uib.getTraversalCount(),
+					writer.writeUIB(uib.getModuleEdgeIndex(), uib.isAdmitted(), uib.getTraversalCount(),
 							uib.getInstanceCount());
 			}
 			if (sscs != null) {
@@ -810,13 +759,13 @@ public class RawGraphTransformer {
 			}
 			if (sges != null) {
 				for (RawSuspiciousGencodeEntry sge : sges)
-					writer.writeSGE(sge.clusterEdge.getEdgeIndex(), sge.uibCount, sge.suibCount);
+					writer.writeSGE(sge.edge.getEdgeIndex(), sge.uibCount, sge.suibCount);
 			}
 		}
-		if (mainCluster != null) {
-			ClusterDataWriter<IndexedClusterNode> writer = graphWriters.getWriter(mainCluster);
+		if (mainModule != null) {
+			ModuleDataWriter<IndexedModuleNode> writer = graphWriters.getWriter(mainModule);
 			// if (writer == null)
-			// writer = graphWriters.createMetadataWriter(mainCluster);
+			// writer = graphWriters.createMetadataWriter(mainModule);
 			writer.writeMetadataHeader(true);
 			writer.writeSequenceMetadataHeader(1, true);
 			Collection<RawUnexpectedIndirectBranch> uibsSorted = null;
@@ -828,7 +777,7 @@ public class RawGraphTransformer {
 					(sgesMain == null) ? 0 : sgesMain.size());
 			if (uibsSorted != null) {
 				for (RawUnexpectedIndirectBranch uib : uibsSorted)
-					writer.writeUIB(uib.getClusterEdgeIndex(), uib.isAdmitted(), uib.getTraversalCount(),
+					writer.writeUIB(uib.getModuleEdgeIndex(), uib.isAdmitted(), uib.getTraversalCount(),
 							uib.getInstanceCount());
 			}
 			for (RawUnexpectedIndirectBranchInterval interval : uibIntervals.values()) {
@@ -841,18 +790,10 @@ public class RawGraphTransformer {
 			}
 			if (sgesMain != null) {
 				for (RawSuspiciousGencodeEntry sge : sgesMain)
-					writer.writeSGE(sge.clusterEdge.getEdgeIndex(), sge.uibCount, sge.suibCount);
+					writer.writeSGE(sge.edge.getEdgeIndex(), sge.uibCount, sge.suibCount);
 			}
 		} else {
-			Log.log("Warning: main cluster not found!");
-		}
-	}
-
-	private void writeModules() throws IOException {
-		for (AutonomousSoftwareDistribution cluster : nodesByCluster.keySet()) {
-			ClusterDataWriter<IndexedClusterNode> output = graphWriters.getWriter(cluster);
-			if (output != null)
-				output.writeModules();
+			Log.log("Warning: main module not found!");
 		}
 	}
 

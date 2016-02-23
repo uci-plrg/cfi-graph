@@ -1,7 +1,6 @@
 package edu.uci.eecs.crowdsafe.graph.main;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -13,18 +12,19 @@ import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
 import edu.uci.eecs.crowdsafe.graph.data.ModuleRelocations;
-import edu.uci.eecs.crowdsafe.graph.data.dist.AutonomousSoftwareDistribution;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ConfiguredSoftwareDistributions;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModuleSet;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
-import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraphCluster;
+import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Node;
 import edu.uci.eecs.crowdsafe.graph.data.graph.NodeHashMap;
 import edu.uci.eecs.crowdsafe.graph.data.graph.NodeList;
 import edu.uci.eecs.crowdsafe.graph.data.graph.OrdinalEdgeList;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterNode;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.loader.ClusterGraphLoadSession;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleBoundaryNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.loader.ModuleGraphLoadSession;
 import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterMetadataExecution;
 import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterMetadataSequence;
 import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterUIB;
@@ -104,21 +104,21 @@ public class RelocationAnalyzer {
 	private final CommonMergeOptions options;
 
 	private ClusterTraceDataSource dataSource;
-	private ClusterGraphLoadSession loadSession;
+	private ModuleGraphLoadSession loadSession;
 
 	private EdgeCounter edgeCounter = new EdgeCounter();
 
 	private File relocationDirectory;
 
-	private Map<String, ModuleGraphCluster<ClusterNode<?>>> graphs = new HashMap<String, ModuleGraphCluster<ClusterNode<?>>>();
+	private Map<String, ModuleGraph<ModuleNode<?>>> graphs = new HashMap<String, ModuleGraph<ModuleNode<?>>>();
 
 	private RelocationAnalyzer(ArgumentStack args) {
 		this.args = args;
 		this.options = new CommonMergeOptions(args, CommonMergeOptions.crowdSafeCommonDir, relocationOption);
 	}
 
-	private ModuleGraphCluster<?> findGraphForExit(long exitHash, String fromModuleName) {
-		for (Map.Entry<String, ModuleGraphCluster<ClusterNode<?>>> entry : graphs.entrySet()) {
+	private ModuleGraph<?> findGraphForExit(long exitHash, String fromModuleName) {
+		for (Map.Entry<String, ModuleGraph<ModuleNode<?>>> entry : graphs.entrySet()) {
 			long hash = CrowdSafeTraceUtil.stringHash(String.format("%s/%s!callback", fromModuleName, entry.getKey()));
 			if (hash == exitHash)
 				return entry.getValue();
@@ -126,8 +126,8 @@ public class RelocationAnalyzer {
 		return null;
 	}
 
-	private ModuleGraphCluster<?> findGraphForEntry(long entryHash, String toModuleName) {
-		for (Map.Entry<String, ModuleGraphCluster<ClusterNode<?>>> entry : graphs.entrySet()) {
+	private ModuleGraph<?> findGraphForEntry(long entryHash, String toModuleName) {
+		for (Map.Entry<String, ModuleGraph<ModuleNode<?>>> entry : graphs.entrySet()) {
 			long hash = CrowdSafeTraceUtil.stringHash(String.format("%s/%s!callback", entry.getKey(), toModuleName));
 			if (hash == entryHash)
 				return entry.getValue();
@@ -154,16 +154,16 @@ public class RelocationAnalyzer {
 				throw new IllegalArgumentException("No such directory '" + relocationDirectory.getName() + "'");
 
 			dataSource = new ClusterTraceDirectory(directory).loadExistingFiles();
-			loadSession = new ClusterGraphLoadSession(dataSource);
+			loadSession = new ModuleGraphLoadSession(dataSource);
 
-			for (AutonomousSoftwareDistribution cluster : dataSource.getReprsentedClusters()) {
-				ModuleGraphCluster<?> graph = loadSession.loadClusterGraph(cluster);
+			for (ApplicationModule cluster : dataSource.getReprsentedModules()) {
+				ModuleGraph<?> graph = loadSession.loadClusterGraph(cluster);
 
 				edgeCounter.countEdges(graph.getGraphData().nodesByHash);
 
 				if (graph.metadata.sequences.size() > 0) {
 					if (graph.metadata.sequences.size() == 1) {
-						graphs.put(graph.cluster.getUnitFilename(), (ModuleGraphCluster<ClusterNode<?>>) graph);
+						graphs.put(graph.module.filename, (ModuleGraph<ModuleNode<?>>) graph);
 					} else {
 						throw new IllegalArgumentException("Error--multiple metadata sequences in module " + graph.name);
 					}
@@ -172,37 +172,36 @@ public class RelocationAnalyzer {
 
 			edgeCounter.report();
 
-			Map<AutonomousSoftwareDistribution, Boolean> suspiciousExitMap = new HashMap<AutonomousSoftwareDistribution, Boolean>();
-			for (ModuleGraphCluster<ClusterNode<?>> graph : graphs.values()) {
-				suspiciousExitMap.put(graph.cluster, false);
+			Map<ApplicationModule, Boolean> suspiciousExitMap = new HashMap<ApplicationModule, Boolean>();
+			for (ModuleGraph<ModuleNode<?>> graph : graphs.values()) {
+				suspiciousExitMap.put(graph.module, false);
 				ClusterMetadataSequence sequence = graph.metadata.sequences.values().iterator().next();
 				for (ClusterMetadataExecution execution : sequence.executions) {
 					for (ClusterUIB uib : execution.uibs) {
 						if (!uib.isAdmitted && uib.edge.getFromNode().getType() != MetaNodeType.RETURN
-								&& uib.edge.getToNode().getType() == MetaNodeType.CLUSTER_EXIT) {
-							suspiciousExitMap.put(graph.cluster, true);
+								&& uib.edge.getToNode().getType() == MetaNodeType.MODULE_EXIT) {
+							suspiciousExitMap.put(graph.module, true);
 						}
 					}
 				}
-				Log.log("Cluster " + graph.cluster.getUnitFilename() + " has "
-						+ (suspiciousExitMap.get(graph.cluster) ? "" : "no") + " suspicious exits");
+				Log.log("Cluster " + graph.module.filename + " has "
+						+ (suspiciousExitMap.get(graph.module) ? "" : "no") + " suspicious exits");
 
 				long anonymousExitHash = CrowdSafeTraceUtil.stringHash(String.format("%s/<anonymous>!callback",
-						graph.cluster.getUnitFilename()));
+						graph.module.filename));
 				int urCount = 0;
-				for (ClusterNode<?> exit : graph.getExitPoints()) {
+				for (ModuleNode<?> exit : graph.getExitPoints()) {
 					if (exit.getHash() == anonymousExitHash) {
-						OrdinalEdgeList<ClusterNode<?>> incoming = exit.getIncomingEdges();
+						OrdinalEdgeList<ModuleNode<?>> incoming = exit.getIncomingEdges();
 						try {
-							for (Edge<ClusterNode<?>> exitEdge : incoming) {
+							for (Edge<ModuleNode<?>> exitEdge : incoming) {
 								if (exitEdge.getEdgeType() == EdgeType.UNEXPECTED_RETURN) {
 									urCount++;
-									OrdinalEdgeList<ClusterNode<?>> outgoing = exitEdge.getFromNode()
-											.getOutgoingEdges();
+									OrdinalEdgeList<ModuleNode<?>> outgoing = exitEdge.getFromNode().getOutgoingEdges();
 									try {
-										for (Edge<ClusterNode<?>> peerEdge : outgoing) {
+										for (Edge<ModuleNode<?>> peerEdge : outgoing) {
 											if (peerEdge != exitEdge
-													&& (peerEdge.getToNode().getType() != MetaNodeType.CLUSTER_EXIT || peerEdge
+													&& (peerEdge.getToNode().getType() != MetaNodeType.MODULE_EXIT || peerEdge
 															.getToNode().getHash() != anonymousExitHash)) {
 												System.out
 														.println("Node "
@@ -222,20 +221,20 @@ public class RelocationAnalyzer {
 						}
 					}
 				}
-				Log.log("Checked " + urCount + " unexpected returns for module " + graph.cluster.getUnitFilename());
+				Log.log("Checked " + urCount + " unexpected returns for module " + graph.module.filename);
 			}
 
 			int whiteBoxCycleCount = 0, checkedWhiteBoxEntries = 0, checkedWhiteBoxNodes = 0;
-			ModuleGraphCluster<ClusterNode<?>> anonymousGraph = loadSession
-					.loadClusterGraph(ConfiguredSoftwareDistributions.ANONYMOUS_CLUSTER); // graphs.get(SoftwareUnit.ANONYMOUS_UNIT_NAME);
+			ModuleGraph<ModuleNode<?>> anonymousGraph = loadSession
+					.loadClusterGraph(ApplicationModule.ANONYMOUS_MODULE); // graphs.get(ApplicationModule.ANONYMOUS_UNIT_NAME);
 			if (anonymousGraph != null) {
-				Set<ClusterNode<?>> visitedNodes = new HashSet<ClusterNode<?>>();
-				LinkedList<ClusterNode<?>> queue = new LinkedList<ClusterNode<?>>();
-				for (ClusterNode<?> entry : anonymousGraph.getEntryPoints()) {
+				Set<ModuleNode<?>> visitedNodes = new HashSet<ModuleNode<?>>();
+				LinkedList<ModuleNode<?>> queue = new LinkedList<ModuleNode<?>>();
+				for (ModuleNode<?> entry : anonymousGraph.getEntryPoints()) {
 					checkedWhiteBoxEntries++;
-					OrdinalEdgeList<ClusterNode<?>> outgoing = entry.getOutgoingEdges();
+					OrdinalEdgeList<ModuleNode<?>> outgoing = entry.getOutgoingEdges();
 					try {
-						for (Edge<ClusterNode<?>> entryEdge : outgoing) {
+						for (Edge<ModuleNode<?>> entryEdge : outgoing) {
 							if (entryEdge.getToNode().isBlackBoxSingleton())
 								continue;
 							visitedNodes.clear();
@@ -243,16 +242,16 @@ public class RelocationAnalyzer {
 							checkedWhiteBoxNodes++;
 							queue.addFirst(entryEdge.getToNode());
 							while (!queue.isEmpty()) {
-								ClusterNode<?> next = queue.removeLast();
+								ModuleNode<?> next = queue.removeLast();
 								if (visitedNodes.contains(next)) {
 									whiteBoxCycleCount++;
 									break;
 								}
 								visitedNodes.add(next);
-								OrdinalEdgeList<ClusterNode<?>> traversal = next.getOutgoingEdges();
+								OrdinalEdgeList<ModuleNode<?>> traversal = next.getOutgoingEdges();
 								try {
-									for (Edge<ClusterNode<?>> traversalEdge : traversal) {
-										if (traversalEdge.getToNode().getType() != MetaNodeType.CLUSTER_EXIT) {
+									for (Edge<ModuleNode<?>> traversalEdge : traversal) {
+										if (traversalEdge.getToNode().getType() != MetaNodeType.MODULE_EXIT) {
 											checkedWhiteBoxNodes++;
 											queue.addFirst(traversalEdge.getToNode());
 										}
@@ -281,8 +280,8 @@ public class RelocationAnalyzer {
 			int multipleExecutionModulesSkipped = 0;
 			int totalSuibSkipped = 0;
 			int maxExecutionsPerModule = 0;
-			for (ModuleGraphCluster<?> graph : graphs.values()) {
-				String moduleName = graph.cluster.getUnitFilename();
+			for (ModuleGraph<?> graph : graphs.values()) {
+				String moduleName = graph.module.filename;
 				ModuleRelocations relocations = null;
 				boolean singleton = false;
 
@@ -360,14 +359,12 @@ public class RelocationAnalyzer {
 								isSuspicious = false;
 								continue;
 							}
-							if (uib.edge.getFromNode().getType() == MetaNodeType.CLUSTER_ENTRY) {
-								ModuleGraphCluster<?> fromGraph = findGraphForEntry(uib.edge.getFromNode().getHash(),
-										graph.cluster.getUnitFilename());
+							if (uib.edge.getFromNode().getType() == MetaNodeType.MODULE_ENTRY) {
+								ModuleGraph<?> fromGraph = findGraphForEntry(uib.edge.getFromNode().getHash(),
+										graph.module.filename);
 								if (fromGraph == null) {
-									AutonomousSoftwareDistribution cluster = ConfiguredSoftwareDistributions
-											.getInstance().getClusterByAnonymousExitHash(
-													uib.edge.getFromNode().getHash());
-									if (cluster != null) {
+									if (ApplicationModuleSet.getInstance().isFromAnonymous(
+											uib.edge.getFromNode().getHash())) {
 										Log.log("SUIB from anonymous: " + uib.edge);
 										continue;
 									}
@@ -381,15 +378,14 @@ public class RelocationAnalyzer {
 									}
 									continue;
 								}
-								if (!suspiciousExitMap.get(fromGraph.cluster)) {
+								if (!suspiciousExitMap.get(fromGraph.module)) {
 									isSuspicious = false;
 									continue;
 								}
 								Node<?> exit = fromGraph.getExitPoint(uib.edge.getFromNode().getHash());
 								if (exit == null) {
-									Log.log("Warning: cannot find the exit node in "
-											+ fromGraph.cluster.getUnitFilename() + " (matching the entry of "
-											+ uib.edge + ")");
+									Log.log("Warning: cannot find the exit node in " + fromGraph.module.filename
+											+ " (matching the entry of " + uib.edge + ")");
 									continue;
 								}
 								OrdinalEdgeList<?> incoming = exit.getIncomingEdges();
@@ -406,7 +402,7 @@ public class RelocationAnalyzer {
 										isSuspicious = false;
 										continue;
 									}
-									Log.log("SUIB: <" + fromGraph.cluster.getUnitFilename() + "> " + uib.edge);
+									Log.log("SUIB: <" + fromGraph.module.filename + "> " + uib.edge);
 								} finally {
 									incoming.release();
 								}
@@ -423,11 +419,11 @@ public class RelocationAnalyzer {
 													&& relocations
 															.containsTag((long) edge.getToNode().getRelativeTag());
 											String tag = "";
-											if (edge.getToNode().getType() == MetaNodeType.CLUSTER_EXIT) {
-												ModuleGraphCluster<?> toGraph = findGraphForExit(edge.getToNode()
-														.getHash(), graph.cluster.getUnitFilename());
+											if (edge.getToNode().getType() == MetaNodeType.MODULE_EXIT) {
+												ModuleGraph<?> toGraph = findGraphForExit(edge.getToNode().getHash(),
+														graph.module.filename);
 												if (toGraph != null)
-													tag = "<" + toGraph.cluster.getUnitFilename() + ">";
+													tag = "<" + toGraph.module.filename + ">";
 											}
 											if (isRelocatableTarget)
 												Log.log("\t> !SUIB: " + edge + " " + tag);
@@ -452,10 +448,10 @@ public class RelocationAnalyzer {
 								 * relocations.relocatableTargets.contains((long) edge.getToNode() .getRelativeTag());
 								 * String tag = ""; if (edge.getToNode().getType() == MetaNodeType.CLUSTER_EXIT) {
 								 * ModuleGraphCluster<?> toGraph = findGraphForExit(edge.getToNode() .getHash(),
-								 * graph.cluster.getUnitFilename()); if (toGraph != null) tag = "<" +
-								 * toGraph.cluster.getUnitFilename() + ">"; } if (isRelocatableTarget)
-								 * Log.log("\t> !SUIB: " + edge + " " + tag); else Log.log("\t> ?SUIB: " + edge + " " +
-								 * tag); } } Log.log("&SUIB&"); } finally { edges.release(); }
+								 * graph.cluster.filename); if (toGraph != null) tag = "<" + toGraph.cluster.filename +
+								 * ">"; } if (isRelocatableTarget) Log.log("\t> !SUIB: " + edge + " " + tag); else
+								 * Log.log("\t> ?SUIB: " + edge + " " + tag); } } Log.log("&SUIB&"); } finally {
+								 * edges.release(); }
 								 */
 								suspiciousInExecution++;
 							} else {

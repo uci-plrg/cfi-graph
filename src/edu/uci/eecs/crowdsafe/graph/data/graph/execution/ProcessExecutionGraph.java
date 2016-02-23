@@ -6,10 +6,9 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 
-import edu.uci.eecs.crowdsafe.graph.data.dist.AutonomousSoftwareDistribution;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ConfiguredSoftwareDistributions;
-import edu.uci.eecs.crowdsafe.graph.data.dist.SoftwareUnit;
-import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraphCluster;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModuleSet;
+import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
 import edu.uci.eecs.crowdsafe.graph.data.results.Graph;
 import edu.uci.eecs.crowdsafe.graph.io.execution.ExecutionTraceDataSource;
 import edu.uci.eecs.crowdsafe.graph.io.execution.ExecutionTraceStreamType;
@@ -53,8 +52,7 @@ public class ProcessExecutionGraph {
 			ExecutionTraceStreamType.MODULE, ExecutionTraceStreamType.GRAPH_NODE, ExecutionTraceStreamType.GRAPH_EDGE,
 			ExecutionTraceStreamType.CROSS_MODULE_EDGE);
 
-	private final Map<AutonomousSoftwareDistribution, ModuleGraphCluster<ExecutionNode>> moduleGraphs = new HashMap<AutonomousSoftwareDistribution, ModuleGraphCluster<ExecutionNode>>();
-	private final Map<SoftwareUnit, ModuleGraphCluster<ExecutionNode>> moduleGraphsBySoftwareUnit = new HashMap<SoftwareUnit, ModuleGraphCluster<ExecutionNode>>();
+	private final Map<ApplicationModule, ModuleGraph<ExecutionNode>> moduleGraphs = new HashMap<ApplicationModule, ModuleGraph<ExecutionNode>>();
 
 	// Used to normalize the tag in a single graph
 	protected final ProcessExecutionModuleSet modules;
@@ -65,18 +63,14 @@ public class ProcessExecutionGraph {
 		this.dataSource = dataSource;
 		this.modules = modules;
 
-		for (AutonomousSoftwareDistribution dist : ConfiguredSoftwareDistributions.getInstance().distributions.values()) {
-			ModuleGraphCluster<ExecutionNode> moduleCluster = new ModuleGraphCluster<ExecutionNode>(name, dist);
-			moduleGraphs.put(dist, moduleCluster);
-
-			for (SoftwareUnit unit : dist.getUnits()) {
-				moduleGraphsBySoftwareUnit.put(unit, moduleCluster);
-			}
+		for (ApplicationModule module : ApplicationModuleSet.getInstance().modulesByName.values()) {
+			ModuleGraph<ExecutionNode> moduleCluster = new ModuleGraph<ExecutionNode>(name, module);
+			moduleGraphs.put(module, moduleCluster);
 		}
 	}
 
 	public void trimEmptyClusters() {
-		for (Map.Entry<AutonomousSoftwareDistribution, ModuleGraphCluster<ExecutionNode>> entry : new ArrayList<Map.Entry<AutonomousSoftwareDistribution, ModuleGraphCluster<ExecutionNode>>>(
+		for (Map.Entry<ApplicationModule, ModuleGraph<ExecutionNode>> entry : new ArrayList<Map.Entry<ApplicationModule, ModuleGraph<ExecutionNode>>>(
 				moduleGraphs.entrySet())) {
 			if (entry.getValue().hasNodes())
 				moduleGraphs.remove(entry.getKey());
@@ -87,24 +81,21 @@ public class ProcessExecutionGraph {
 		return modules;
 	}
 
-	public ModuleGraphCluster<ExecutionNode> getModuleGraphCluster(AutonomousSoftwareDistribution distribution) {
-		return moduleGraphs.get(distribution);
+	public ModuleGraph<ExecutionNode> getModuleGraph(ApplicationModule module) {
+		ModuleGraph<ExecutionNode> graph = moduleGraphs.get(module);
+		if (graph == null)
+			return moduleGraphs.get(ApplicationModule.MAIN_PROGRAM);
+		else
+			return graph;
 	}
 
-	public ModuleGraphCluster<ExecutionNode> getModuleGraphCluster(SoftwareUnit softwareUnit) {
-		ModuleGraphCluster<ExecutionNode> cluster = moduleGraphsBySoftwareUnit.get(softwareUnit);
-		if (cluster != null)
-			return cluster;
-		return moduleGraphs.get(ConfiguredSoftwareDistributions.MAIN_PROGRAM);
-	}
-
-	public Collection<AutonomousSoftwareDistribution> getRepresentedClusters() {
+	public Collection<ApplicationModule> getRepresentedClusters() {
 		return moduleGraphs.keySet();
 	}
 
 	public int calculateTotalNodeCount() {
 		int count = 0;
-		for (ModuleGraphCluster<ExecutionNode> cluster : moduleGraphs.values()) {
+		for (ModuleGraph<ExecutionNode> cluster : moduleGraphs.values()) {
 			count += cluster.getNodeCount();
 		}
 		return count;
@@ -115,10 +106,10 @@ public class ProcessExecutionGraph {
 		processBuilder.setId(dataSource.getProcessId());
 		processBuilder.setName(dataSource.getProcessName());
 
-		for (AutonomousSoftwareDistribution dist : moduleGraphs.keySet()) {
-			ModuleGraphCluster<ExecutionNode> cluster = moduleGraphs.get(dist);
-			cluster.analyzeGraph(cluster.cluster.isAnonymous());
-			processBuilder.addCluster(cluster.summarize(cluster.cluster.isAnonymous()));
+		for (ApplicationModule dist : moduleGraphs.keySet()) {
+			ModuleGraph<ExecutionNode> cluster = moduleGraphs.get(dist);
+			cluster.analyzeGraph(cluster.module.isAnonymous);
+			processBuilder.addCluster(cluster.summarize(cluster.module.isAnonymous));
 		}
 		
 		return processBuilder.build();

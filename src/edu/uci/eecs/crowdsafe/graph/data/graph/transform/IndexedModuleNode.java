@@ -1,26 +1,26 @@
 package edu.uci.eecs.crowdsafe.graph.data.graph.transform;
 
-import edu.uci.eecs.crowdsafe.graph.data.dist.AutonomousSoftwareDistribution;
-import edu.uci.eecs.crowdsafe.graph.data.dist.SoftwareModule;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.NodeIdentifier;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterBasicBlock;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleBasicBlock;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
 
-public class IndexedClusterNode implements NodeIdentifier {
+public class IndexedModuleNode implements NodeIdentifier {
 
-	public final AutonomousSoftwareDistribution cluster;
-	public final ClusterNode<?> node;
+	public final ApplicationModule module;
+	public final ModuleNode<?> node;
 	public final int index;
 
-	IndexedClusterNode(AutonomousSoftwareDistribution cluster, ClusterNode<?> node, int index) {
-		this.cluster = cluster;
+	IndexedModuleNode(ApplicationModule module, ModuleNode<?> node, int index) {
+		this.module = module;
 		this.node = node;
 		this.index = index;
 	}
 
 	@Override
-	public SoftwareModule getModule() {
+	public ApplicationModule getModule() {
 		return node.getModule();
 	}
 
@@ -44,8 +44,8 @@ public class IndexedClusterNode implements NodeIdentifier {
 		return node.getType();
 	}
 
-	IndexedClusterNode resetToVersionZero() {
-		return new IndexedClusterNode(cluster, new ClusterBasicBlock(node.getModule(), node.getRelativeTag(), 0,
+	IndexedModuleNode resetToVersionZero() {
+		return new IndexedModuleNode(module, new ModuleBasicBlock(node.getModule(), node.getRelativeTag(), 0,
 				node.getHash(), node.getType()), index);
 	}
 
@@ -53,7 +53,7 @@ public class IndexedClusterNode implements NodeIdentifier {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + ((cluster.name == null) ? 0 : cluster.name.hashCode());
+		result = prime * result + ((module.name == null) ? 0 : module.name.hashCode());
 		result = prime * result + index;
 		return result;
 	}
@@ -66,8 +66,8 @@ public class IndexedClusterNode implements NodeIdentifier {
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		IndexedClusterNode other = (IndexedClusterNode) obj;
-		if (!cluster.name.equals(other.cluster.name))
+		IndexedModuleNode other = (IndexedModuleNode) obj;
+		if (!module.name.equals(other.module.name))
 			return false;
 		if (index != other.index)
 			return false;

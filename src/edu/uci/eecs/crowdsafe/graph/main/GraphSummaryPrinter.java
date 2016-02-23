@@ -9,9 +9,9 @@ import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
 import edu.uci.eecs.crowdsafe.graph.data.DataMessageType;
-import edu.uci.eecs.crowdsafe.graph.data.dist.AutonomousSoftwareDistribution;
-import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraphCluster;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.loader.ClusterGraphLoadSession;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.loader.ModuleGraphLoadSession;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ProcessExecutionGraph;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.loader.ProcessGraphLoadSession;
 import edu.uci.eecs.crowdsafe.graph.data.results.Graph;
@@ -79,13 +79,13 @@ public class GraphSummaryPrinter {
 		Graph.Process.Builder processBuilder = Graph.Process.newBuilder();
 		processBuilder.setName(directory.getName());
 
-		ModuleGraphCluster<?> mainGraph = null;
+		ModuleGraph<?> mainGraph = null;
 
 		ClusterTraceDataSource dataSource = new ClusterTraceDirectory(directory).loadExistingFiles();
-		ClusterGraphLoadSession loadSession = new ClusterGraphLoadSession(dataSource);
-		for (AutonomousSoftwareDistribution cluster : dataSource.getReprsentedClusters()) {
-			ModuleGraphCluster<?> graph = loadSession.loadClusterGraph(cluster);
-			processBuilder.addCluster(graph.summarize(cluster.isAnonymous()));
+		ModuleGraphLoadSession loadSession = new ModuleGraphLoadSession(dataSource);
+		for (ApplicationModule module : dataSource.getReprsentedModules()) {
+			ModuleGraph<?> graph = loadSession.loadClusterGraph(module);
+			processBuilder.addCluster(graph.summarize(module.isAnonymous));
 
 			if (graph.metadata.isMain())
 				mainGraph = graph;

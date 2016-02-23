@@ -6,13 +6,12 @@ import java.util.Map;
 
 import edu.uci.eecs.crowdsafe.common.exception.InvalidGraphException;
 import edu.uci.eecs.crowdsafe.common.exception.InvalidTagException;
-import edu.uci.eecs.crowdsafe.graph.data.dist.AutonomousSoftwareDistribution;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.GraphLoadEventListener;
 import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
-import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraphCluster;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ExecutionNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ProcessExecutionGraph;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ProcessExecutionModuleSet;
@@ -76,8 +75,8 @@ public class ProcessGraphLoadSession {
 			graph.trimEmptyClusters();
 
 			// Some other initialization and sanity checks
-			for (AutonomousSoftwareDistribution cluster : graph.getRepresentedClusters()) {
-				ModuleGraphCluster<ExecutionNode> clusterGraph = graph.getModuleGraphCluster(cluster);
+			for (ApplicationModule cluster : graph.getRepresentedClusters()) {
+				ModuleGraph<ExecutionNode> clusterGraph = graph.getModuleGraph(cluster);
 				// clusterGraph.getGraphData().validate();
 				// clusterGraph.analyzeGraph();
 			}
@@ -120,23 +119,18 @@ public class ProcessGraphLoadSession {
 				return;
 			}
 
-			ModuleGraphCluster<ExecutionNode> moduleCluster = graph.getModuleGraphCluster(node.getModule().unit);
-			ModuleGraph moduleGraph = moduleCluster.getModuleGraph(node.getModule().unit);
-			if (moduleGraph == null) {
-				moduleGraph = new ModuleGraph(node.getModule().unit);
-				moduleCluster.addModule(moduleGraph);
-			}
-			moduleCluster.addNode(node);
+			ModuleGraph<ExecutionNode> moduleGraph = graph.getModuleGraph(node.getModule());
+			moduleGraph.addNode(node);
 			hashLookupTable.put(node.getKey(), node);
 
 			if (listener != null)
-				listener.graphAddition(node, moduleCluster);
+				listener.graphAddition(node, moduleGraph);
 		}
 
 		private void createProcessEntryPoint(ExecutionNode node) {
-			ExecutionNode entryNode = new ExecutionNode(node.getModule(), MetaNodeType.CLUSTER_ENTRY, 0L, 0, 1L,
+			ExecutionNode entryNode = new ExecutionNode(node.getModule(), MetaNodeType.MODULE_ENTRY, 0L, 0, 1L,
 					node.getTimestamp());
-			graph.getModuleGraphCluster(node.getModule().unit).addClusterEntryNode(entryNode);
+			graph.getModuleGraph(node.getModule()).addClusterEntryNode(entryNode);
 			Edge<ExecutionNode> clusterEntryEdge = new Edge<ExecutionNode>(entryNode, node, EdgeType.DIRECT, 0);
 			entryNode.addOutgoingEdge(clusterEntryEdge);
 			node.addIncomingEdge(clusterEntryEdge);

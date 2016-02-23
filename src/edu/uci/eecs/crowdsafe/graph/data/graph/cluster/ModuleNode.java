@@ -1,11 +1,12 @@
 package edu.uci.eecs.crowdsafe.graph.data.graph.cluster;
 
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeSet;
 import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Node;
 
-public abstract class ClusterNode<KeyType extends Node.Key> extends Node<ClusterNode<?>> {
+public abstract class ModuleNode<KeyType extends Node.Key> extends Node<ModuleNode<?>> {
 
 	public static final int SYSTEM_SINGLETON = 1;
 	public static final int PROCESS_ENTRY_SINGLETON = 3;
@@ -19,32 +20,32 @@ public abstract class ClusterNode<KeyType extends Node.Key> extends Node<Cluster
 
 	final KeyType key;
 
-	protected ClusterNode(KeyType key) {
+	protected ModuleNode(KeyType key) {
 		this.key = key;
 	}
 
 	public abstract int getInstanceId();
 
-	public abstract ClusterModule getModule();
+	public abstract ApplicationModule getModule();
 
 	@Override
 	public KeyType getKey() {
 		return key;
 	}
 
-	public void addIncomingEdge(Edge<ClusterNode<?>> e) {
+	public void addIncomingEdge(Edge<ModuleNode<?>> e) {
 		edges.addEdge(EdgeSet.Direction.INCOMING, e);
 	}
 
-	public void addOutgoingEdge(Edge<ClusterNode<?>> e) {
+	public void addOutgoingEdge(Edge<ModuleNode<?>> e) {
 		edges.addEdge(EdgeSet.Direction.OUTGOING, e);
 	}
 
-	public void removeIncomingEdge(Edge<ClusterNode<?>> e) {
+	public void removeIncomingEdge(Edge<ModuleNode<?>> e) {
 		edges.removeEdge(EdgeSet.Direction.INCOMING, e);
 	}
 
-	public boolean replaceEdge(Edge<ClusterNode<?>> original, Edge<ClusterNode<?>> replacement) {
+	public boolean replaceEdge(Edge<ModuleNode<?>> original, Edge<ModuleNode<?>> replacement) {
 		return edges.replaceEdge(original, replacement);
 	}
 
@@ -59,8 +60,8 @@ public abstract class ClusterNode<KeyType extends Node.Key> extends Node<Cluster
 
 	@Override
 	public boolean equals(Object o) {
-		if (o instanceof ClusterNode) {
-			return key.equals(((ClusterNode<?>) o).key);
+		if (o instanceof ModuleNode) {
+			return key.equals(((ModuleNode<?>) o).key);
 		}
 		return false;
 	}

@@ -24,7 +24,7 @@ public class RawSuspiciousGencodeEntry {
 	final int uibCount;
 	final int suibCount;
 
-	RawEdge clusterEdge;
+	RawEdge edge;
 
 	private RawSuspiciousGencodeEntry(int edgeIndex, int uibCount, int suibCount) {
 		this.edgeIndex = edgeIndex;

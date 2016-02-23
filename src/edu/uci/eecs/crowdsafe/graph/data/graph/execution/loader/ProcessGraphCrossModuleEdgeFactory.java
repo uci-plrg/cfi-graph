@@ -9,9 +9,9 @@ import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
-import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
-import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraphCluster;
 import edu.uci.eecs.crowdsafe.graph.data.graph.GraphLoadEventListener.LoadTarget;
+import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
+import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ExecutionNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ModuleInstance;
 import edu.uci.eecs.crowdsafe.graph.io.execution.ExecutionTraceStreamType;
@@ -103,9 +103,8 @@ public class ProcessGraphCrossModuleEdgeFactory {
 			// Cross-module edges are not added to any node, but the
 			// edge from signature node to real entry node is preserved.
 			// We only need to add the signature nodes to "nodes"
-			ModuleGraphCluster<ExecutionNode> fromCluster = loader.graph.getModuleGraphCluster(fromModule.unit);
-
-			ModuleGraphCluster<ExecutionNode> toCluster = loader.graph.getModuleGraphCluster(toModule.unit);
+			ModuleGraph<ExecutionNode> fromCluster = loader.graph.getModuleGraph(fromModule);
+			ModuleGraph<ExecutionNode> toCluster = loader.graph.getModuleGraph(toModule);
 
 			if (fromCluster == toCluster) {
 				Edge<ExecutionNode> e = new Edge<ExecutionNode>(fromNode, toNode, edgeType, edgeOrdinal);
@@ -115,7 +114,7 @@ public class ProcessGraphCrossModuleEdgeFactory {
 				if (loader.listener != null)
 					loader.listener.edgeCreation(e);
 			} else {
-				ExecutionNode exitNode = new ExecutionNode(fromModule, MetaNodeType.CLUSTER_EXIT, signatureHash, 0,
+				ExecutionNode exitNode = new ExecutionNode(fromModule, MetaNodeType.MODULE_EXIT, signatureHash, 0,
 						signatureHash, fromNode.getTimestamp());
 				fromCluster.addNode(exitNode);
 				Edge<ExecutionNode> clusterExitEdge = new Edge<ExecutionNode>(fromNode, exitNode, edgeType, 0);
@@ -127,7 +126,7 @@ public class ProcessGraphCrossModuleEdgeFactory {
 
 				ExecutionNode entryNode = toCluster.getEntryPoint(signatureHash);
 				if (entryNode == null) {
-					entryNode = new ExecutionNode(toModule, MetaNodeType.CLUSTER_ENTRY, 0L, 0, signatureHash,
+					entryNode = new ExecutionNode(toModule, MetaNodeType.MODULE_ENTRY, 0L, 0, signatureHash,
 							toNode.getTimestamp());
 					toCluster.addClusterEntryNode(entryNode);
 				}

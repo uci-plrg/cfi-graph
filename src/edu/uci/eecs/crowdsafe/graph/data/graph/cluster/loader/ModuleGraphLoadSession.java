@@ -7,13 +7,12 @@ import java.util.List;
 import edu.uci.eecs.crowdsafe.common.exception.InvalidGraphException;
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
-import edu.uci.eecs.crowdsafe.graph.data.dist.AutonomousSoftwareDistribution;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.GraphLoadEventListener;
-import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraphCluster;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterGraph;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterModuleList;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ApplicationGraph;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterMetadataSequence;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ExecutionNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ProcessExecutionModuleSet;
@@ -21,23 +20,21 @@ import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDataSource;
 import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceStreamType;
 import edu.uci.eecs.crowdsafe.graph.io.execution.ExecutionTraceDataSource;
 
-public class ClusterGraphLoadSession {
+public class ModuleGraphLoadSession {
 
 	public interface ExecutionNodeCollection {
 		void add(ExecutionNode node);
 	}
 
 	private final ClusterTraceDataSource dataSource;
-	private final ClusterModuleLoader moduleLoader;
 
-	public ClusterGraphLoadSession(ClusterTraceDataSource dataSource) {
+	public ModuleGraphLoadSession(ClusterTraceDataSource dataSource) {
 		this.dataSource = dataSource;
-		moduleLoader = new ClusterModuleLoader(dataSource);
 	}
 
 	public void loadNodes(ExecutionTraceDataSource dataSource, ExecutionNodeCollection collection,
 			ProcessExecutionModuleSet modules) throws IOException {
-		throw new UnsupportedOperationException("Can't load cluster nodes in isolation yet!");
+		throw new UnsupportedOperationException("Can't load modular nodes in isolation yet!");
 
 		/**
 		 * <pre>
@@ -54,46 +51,44 @@ public class ClusterGraphLoadSession {
 		 */
 	}
 
-	public ModuleGraphCluster<ClusterNode<?>> loadClusterGraph(AutonomousSoftwareDistribution cluster)
-			throws IOException {
-		return loadClusterGraph(cluster, null);
+	public ModuleGraph<ModuleNode<?>> loadClusterGraph(ApplicationModule module) throws IOException {
+		return loadModuleGraph(module, null);
 	}
 
-	public ModuleGraphCluster<ClusterNode<?>> loadClusterGraph(AutonomousSoftwareDistribution cluster,
-			GraphLoadEventListener listener) throws IOException {
-		if (!dataSource.getReprsentedClusters().contains(cluster))
+	public ModuleGraph<ModuleNode<?>> loadModuleGraph(ApplicationModule module, GraphLoadEventListener listener)
+			throws IOException {
+		if (!dataSource.getReprsentedModules().contains(module))
 			return null;
 
-		Log.log("Loading graph %s from %s", cluster, dataSource.getDirectory().getName());
+		Log.log("Loading graph %s from %s", module, dataSource.getDirectory().getName());
 
-		GraphLoader graphLoader = new GraphLoader(cluster, listener);
+		GraphLoader graphLoader = new GraphLoader(module, listener);
 		return graphLoader.loadGraph();
 	}
 
 	class GraphLoader {
-		final AutonomousSoftwareDistribution cluster;
+		final ApplicationModule module;
 
 		final GraphLoadEventListener listener;
 
-		ClusterGraph builder;
-		final List<ClusterNode<?>> nodeList = new ArrayList<ClusterNode<?>>();
-		final List<Edge<ClusterNode<?>>> edgeList = new ArrayList<Edge<ClusterNode<?>>>();
+		ApplicationGraph builder;
+		final List<ModuleNode<?>> nodeList = new ArrayList<ModuleNode<?>>();
+		final List<Edge<ModuleNode<?>>> edgeList = new ArrayList<Edge<ModuleNode<?>>>();
 
-		GraphLoader(AutonomousSoftwareDistribution cluster, GraphLoadEventListener listener) {
-			this.cluster = cluster;
+		GraphLoader(ApplicationModule module, GraphLoadEventListener listener) {
+			this.module = module;
 			this.listener = listener;
 		}
 
-		ModuleGraphCluster<ClusterNode<?>> loadGraph() throws IOException {
+		ModuleGraph<ModuleNode<?>> loadGraph() throws IOException {
 			long start = System.currentTimeMillis();
 
-			ClusterModuleList modules = moduleLoader.loadModules(cluster, dataSource);
-			builder = new ClusterGraph(String.format("cluster %s loaded from %s", cluster.getUnitFilename(), dataSource
-					.getDirectory().getName()), cluster, modules);
+			builder = new ApplicationGraph(String.format("cluster %s loaded from %s", module.filename, dataSource
+					.getDirectory().getName()), module);
 
 			try {
-				loadGraphNodes(modules);
-				loadEdges(modules);
+				loadGraphNodes();
+				loadEdges();
 			} catch (IOException e) {
 				throw e;
 			} catch (Exception e) {
@@ -104,10 +99,10 @@ public class ClusterGraphLoadSession {
 				loadMetadata();
 			} catch (Throwable t) {
 				Log.log(t);
-				Log.log("Warning: failed to load the metadata from graph %s", cluster.name);
+				Log.log("Warning: failed to load the metadata from graph %s", module.name);
 			}
 
-			Log.log("Cluster %s loaded in %f seconds.", cluster.name, (System.currentTimeMillis() - start) / 1000.);
+			Log.log("Cluster %s loaded in %f seconds.", module.name, (System.currentTimeMillis() - start) / 1000.);
 
 			// builder.graph.analyzeGraph(cluster.isAnonymous());
 			// if (builder.graph.cluster.isDynamic())
@@ -116,12 +111,12 @@ public class ClusterGraphLoadSession {
 			return builder.graph;
 		}
 
-		private void loadGraphNodes(ClusterModuleList modules) throws IOException {
-			ClusterGraphNodeFactory nodeFactory = new ClusterGraphNodeFactory(modules,
-					dataSource.getLittleEndianInputStream(cluster, ClusterTraceStreamType.GRAPH_NODE), listener);
+		private void loadGraphNodes() throws IOException {
+			ModuleGraphNodeFactory nodeFactory = new ModuleGraphNodeFactory(module,
+					dataSource.getLittleEndianInputStream(module, ClusterTraceStreamType.GRAPH_NODE), listener);
 			try {
 				while (nodeFactory.ready()) {
-					ClusterNode<?> node = nodeFactory.createNode();
+					ModuleNode<?> node = nodeFactory.createNode();
 
 					builder.graph.addNode(node);
 					nodeList.add(node);
@@ -134,14 +129,14 @@ public class ClusterGraphLoadSession {
 			}
 		}
 
-		private void loadEdges(ClusterModuleList modules) throws IOException {
-			ClusterGraphEdgeFactory edgeFactory = new ClusterGraphEdgeFactory(nodeList,
-					dataSource.getLittleEndianInputStream(cluster, ClusterTraceStreamType.GRAPH_EDGE));
+		private void loadEdges() throws IOException {
+			ModuleGraphEdgeFactory edgeFactory = new ModuleGraphEdgeFactory(nodeList,
+					dataSource.getLittleEndianInputStream(module, ClusterTraceStreamType.GRAPH_EDGE));
 
 			try {
 				while (edgeFactory.ready()) {
 					try {
-						Edge<ClusterNode<?>> edge = edgeFactory.createEdge();
+						Edge<ModuleNode<?>> edge = edgeFactory.createEdge();
 
 						if (listener != null)
 							listener.edgeCreation(edge);
@@ -160,11 +155,11 @@ public class ClusterGraphLoadSession {
 		}
 
 		private void loadMetadata() throws IOException {
-			LittleEndianInputStream input = dataSource.getLittleEndianInputStream(cluster, ClusterTraceStreamType.META);
+			LittleEndianInputStream input = dataSource.getLittleEndianInputStream(module, ClusterTraceStreamType.META);
 			if ((input == null) || !input.ready())
 				return;
 
-			ClusterGraphMetadataLoader metadataLoader = new ClusterGraphMetadataLoader(edgeList, input);
+			ModuleGraphMetadataLoader metadataLoader = new ModuleGraphMetadataLoader(edgeList, input);
 
 			try {
 				if (metadataLoader.ready()) {

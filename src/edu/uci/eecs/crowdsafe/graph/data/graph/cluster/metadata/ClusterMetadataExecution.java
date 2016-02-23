@@ -10,7 +10,7 @@ import java.util.UUID;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
 
 public class ClusterMetadataExecution {
 
@@ -63,7 +63,7 @@ public class ClusterMetadataExecution {
 		intervals.get(interval.type).add(interval);
 	}
 
-	public void retainMergedUIBs(Collection<Edge<ClusterNode<?>>> mergedEdges, boolean removeSuspiciousEdges) {
+	public void retainMergedUIBs(Collection<Edge<ModuleNode<?>>> mergedEdges, boolean removeSuspiciousEdges) {
 		ClusterUIB uib;
 		boolean unmerged;
 		for (int i = uibs.size() - 1; i >= 0; i--) {

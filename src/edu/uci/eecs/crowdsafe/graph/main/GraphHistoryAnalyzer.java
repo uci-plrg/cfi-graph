@@ -16,17 +16,17 @@ import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
 import edu.uci.eecs.crowdsafe.graph.data.ModuleRelocations;
-import edu.uci.eecs.crowdsafe.graph.data.dist.AutonomousSoftwareDistribution;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ConfiguredSoftwareDistributions;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModuleSet;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
-import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraphCluster;
+import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Node;
 import edu.uci.eecs.crowdsafe.graph.data.graph.NodeHashMap;
 import edu.uci.eecs.crowdsafe.graph.data.graph.NodeList;
 import edu.uci.eecs.crowdsafe.graph.data.graph.OrdinalEdgeList;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterNode;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.loader.ClusterGraphLoadSession;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.loader.ModuleGraphLoadSession;
 import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDataSource;
 import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDirectory;
 
@@ -37,7 +37,7 @@ public class GraphHistoryAnalyzer {
 		final int tag;
 
 		NodeIdentifier(Node<?> node) {
-			this.moduleName = node.getModule().unit.name + ":" + node.getModule().unit.version;
+			this.moduleName = node.getModule().name + ":" + node.getModule().version;
 			this.tag = node.getRelativeTag();
 		}
 
@@ -92,16 +92,16 @@ public class GraphHistoryAnalyzer {
 			moduleRelocations = ModuleRelocations.loadAllRelocations(relocationDirectory);
 		}
 
-		private void analyzeGraph(ModuleGraphCluster<?> graph) throws IOException {
-			if (graph.cluster.isAnonymous())
+		private void analyzeGraph(ModuleGraph<?> graph) throws IOException {
+			if (graph.module.isAnonymous)
 				return;
 
 			NodeHashMap<?> nodeMap = graph.getGraphData().nodesByHash;
 			for (Long hash : nodeMap.keySet()) {
 				NodeList<?> nodes = nodeMap.get(hash);
 				for (int i = 0; i < nodes.size(); i++) {
-					ClusterNode<?> node = (ClusterNode<?>) nodes.get(i);
-					OrdinalEdgeList<ClusterNode<?>> outgoing = node.getOutgoingEdges();
+					ModuleNode<?> node = (ModuleNode<?>) nodes.get(i);
+					OrdinalEdgeList<ModuleNode<?>> outgoing = node.getOutgoingEdges();
 					try {
 						for (Edge<?> edge : outgoing) {
 							if (edge.getEdgeType() == EdgeType.UNEXPECTED_RETURN) {
@@ -119,9 +119,9 @@ public class GraphHistoryAnalyzer {
 			}
 
 			for (long entryHash : anonymousEntryHashes) {
-				ClusterNode<?> anonymousEntry = (ClusterNode<?>) graph.getEntryPoint(entryHash);
+				ModuleNode<?> anonymousEntry = (ModuleNode<?>) graph.getEntryPoint(entryHash);
 				if (anonymousEntry != null) {
-					OrdinalEdgeList<ClusterNode<?>> outgoing = anonymousEntry.getOutgoingEdges();
+					OrdinalEdgeList<ModuleNode<?>> outgoing = anonymousEntry.getOutgoingEdges();
 					try {
 						for (Edge<?> edge : outgoing) {
 							NodeIdentifier id = new NodeIdentifier(edge.getToNode());
@@ -139,11 +139,11 @@ public class GraphHistoryAnalyzer {
 			}
 
 			for (long exitHash : anonymousExitHashes) {
-				ClusterNode<?> anonymousExit = (ClusterNode<?>) graph.getExitPoint(exitHash);
+				ModuleNode<?> anonymousExit = (ModuleNode<?>) graph.getExitPoint(exitHash);
 				if (anonymousExit != null) {
-					OrdinalEdgeList<ClusterNode<?>> incoming = anonymousExit.getIncomingEdges();
+					OrdinalEdgeList<ModuleNode<?>> incoming = anonymousExit.getIncomingEdges();
 					try {
-						for (Edge<ClusterNode<?>> edge : incoming) {
+						for (Edge<ModuleNode<?>> edge : incoming) {
 							NodeIdentifier id = new NodeIdentifier(edge.getFromNode());
 							if (!toGencode.contains(id)) {
 								toGencode.add(id);
@@ -158,8 +158,8 @@ public class GraphHistoryAnalyzer {
 			}
 		}
 
-		private String isRelocatable(ModuleGraphCluster<?> graph, Node<?> node) {
-			ModuleRelocations relocations = moduleRelocations.get(graph.cluster.getUnitFilename());
+		private String isRelocatable(ModuleGraph<?> graph, Node<?> node) {
+			ModuleRelocations relocations = moduleRelocations.get(graph.module.filename);
 			if (relocations == null)
 				return "<no-relocations>";
 
@@ -170,19 +170,19 @@ public class GraphHistoryAnalyzer {
 			}
 		}
 
-		private void setupAnonymousHashes(ModuleGraphCluster<?> anonymous) {
+		private void setupAnonymousHashes(ModuleGraph<?> anonymous) {
 			anonymousEntryHashes.clear();
 			anonymousExitHashes.clear();
 
-			if (anonymous == null || !anonymous.cluster.isAnonymous()) {
+			if (anonymous == null || !anonymous.module.isAnonymous) {
 				return;
 			}
 
 			for (Object entry : anonymous.getEntryPoints()) {
-				anonymousExitHashes.add(((ClusterNode<?>) entry).getHash());
+				anonymousExitHashes.add(((ModuleNode<?>) entry).getHash());
 			}
 			for (Object exit : anonymous.getExitPoints()) {
-				anonymousEntryHashes.add(((ClusterNode<?>) exit).getHash());
+				anonymousEntryHashes.add(((ModuleNode<?>) exit).getHash());
 			}
 
 			// Log.log("Setup %d entries into gencode and %d exits from gencode (for cluster %s)",
@@ -197,13 +197,13 @@ public class GraphHistoryAnalyzer {
 			OptionMode.REQUIRED);
 
 	private ClusterTraceDataSource dataSource;
-	private ClusterGraphLoadSession loadSession;
+	private ModuleGraphLoadSession loadSession;
 
 	private EdgeAnalyzer edgeAnalyzer;
 
 	private File relocationDirectory;
 
-	private Map<String, ModuleGraphCluster<ClusterNode<?>>> graphs = new HashMap<String, ModuleGraphCluster<ClusterNode<?>>>();
+	private Map<String, ModuleGraph<ModuleNode<?>>> graphs = new HashMap<String, ModuleGraph<ModuleNode<?>>>();
 
 	private int graphCount = 0;
 	private String currentRun;
@@ -213,8 +213,8 @@ public class GraphHistoryAnalyzer {
 		this.options = new CommonMergeOptions(args, CommonMergeOptions.crowdSafeCommonDir, relocationOption);
 	}
 
-	private ModuleGraphCluster<?> loadGraph(AutonomousSoftwareDistribution cluster) throws IOException {
-		ModuleGraphCluster<?> graph;
+	private ModuleGraph<?> loadGraph(ApplicationModule cluster) throws IOException {
+		ModuleGraph<?> graph;
 		Log.setSilent(true);
 		graph = loadSession.loadClusterGraph(cluster);
 		Log.setSilent(false);
@@ -260,13 +260,13 @@ public class GraphHistoryAnalyzer {
 
 			for (File runDirectory : runDirectories) {
 				dataSource = new ClusterTraceDirectory(runDirectory).loadExistingFiles();
-				loadSession = new ClusterGraphLoadSession(dataSource);
+				loadSession = new ModuleGraphLoadSession(dataSource);
 
-				edgeAnalyzer.setupAnonymousHashes(loadGraph(ConfiguredSoftwareDistributions.ANONYMOUS_CLUSTER));
+				edgeAnalyzer.setupAnonymousHashes(loadGraph(ApplicationModule.ANONYMOUS_MODULE));
 				graphCount++;
 				currentRun = runDirectory.getName();
-				for (AutonomousSoftwareDistribution cluster : dataSource.getReprsentedClusters()) {
-					ModuleGraphCluster<?> graph = loadGraph(cluster);
+				for (ApplicationModule cluster : dataSource.getReprsentedModules()) {
+					ModuleGraph<?> graph = loadGraph(cluster);
 					edgeAnalyzer.analyzeGraph(graph);
 				}
 			}

@@ -8,27 +8,27 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
-import edu.uci.eecs.crowdsafe.graph.data.dist.SoftwareUnit;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.io.execution.ExecutionTraceStreamType;
 
 public class ProcessExecutionModuleSet {
 
-	private final Multimap<SoftwareUnit, ModuleInstance> instancesByUnit = ArrayListMultimap.create();
-	private ModuleInstance modules[] = null;
+	private final Multimap<ApplicationModule, ModuleInstance> instancesByModule = ArrayListMultimap.create();
+	private ModuleInstance modules[] = null; // TODO: optimize by grouping
 
 	public void add(ModuleInstance module) {
 		if (modules != null)
 			throw new IllegalStateException("This set of modules has been frozen, new modules cannot be added now!");
-		instancesByUnit.put(module.unit, module);
+		instancesByModule.put(module, module);
 	}
 
-	public Collection<ModuleInstance> getUnitInstances(SoftwareUnit unit) {
-		return instancesByUnit.get(unit);
+	public Collection<ModuleInstance> getUnitInstances(ApplicationModule module) {
+		return instancesByModule.get(module);
 	}
 
 	public void freeze() {
 		List<ModuleInstance> instances = new ArrayList<ModuleInstance>();
-		instances.addAll(instancesByUnit.values());
+		instances.addAll(instancesByModule.values()); // maintains add-order within each mapping
 		modules = instances.toArray(new ModuleInstance[] {});
 	}
 

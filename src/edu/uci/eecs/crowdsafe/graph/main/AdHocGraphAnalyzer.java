@@ -9,16 +9,16 @@ import java.util.Set;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
-import edu.uci.eecs.crowdsafe.graph.data.dist.AutonomousSoftwareDistribution;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ConfiguredSoftwareDistributions;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModuleSet;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.GraphLoadEventListener;
-import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraphCluster;
+import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Node;
 import edu.uci.eecs.crowdsafe.graph.data.graph.OrdinalEdgeList;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterBoundaryNode;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterNode;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.loader.ClusterGraphLoadSession;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleBoundaryNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.loader.ModuleGraphLoadSession;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ProcessExecutionGraph;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.loader.ProcessGraphLoadSession;
 import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDataSource;
@@ -31,8 +31,8 @@ public class AdHocGraphAnalyzer {
 
 	class LoadListener implements GraphLoadEventListener {
 		final Map<Long, Integer> syscallNumbersByExportHash = new HashMap<Long, Integer>();
-		final Set<AutonomousSoftwareDistribution> blackBoxLinkedModules = new HashSet<AutonomousSoftwareDistribution>();
-		final Set<AutonomousSoftwareDistribution> whiteBoxLinkedModules = new HashSet<AutonomousSoftwareDistribution>();
+		final Set<ApplicationModule> blackBoxLinkedModules = new HashSet<ApplicationModule>();
+		final Set<ApplicationModule> whiteBoxLinkedModules = new HashSet<ApplicationModule>();
 
 		public LoadListener() {
 			for (int i = 0; i < 4000; i++) {
@@ -42,21 +42,24 @@ public class AdHocGraphAnalyzer {
 
 		@Override
 		public void edgeCreation(Edge<?> edge) {
-			if ((edge.getFromNode() instanceof ClusterBoundaryNode) && edge.getToNode().getModule().unit.isAnonymous) {
-				AutonomousSoftwareDistribution cluster = ConfiguredSoftwareDistributions.getInstance()
-						.getClusterByAnonymousEntryHash(edge.getFromNode().getHash());
-				if (((ClusterNode) edge.getToNode()).isBlackBoxSingleton())
-					blackBoxLinkedModules.add(cluster);
+			if ((edge.getFromNode() instanceof ModuleBoundaryNode) && edge.getToNode().getModule().isAnonymous) {
+				ModuleBoundaryNode.HashLabel entryLabel = ApplicationModuleSet.getInstance().crossModuleLabels.get(edge
+						.getFromNode().getHash());
+				ApplicationModule module = ApplicationModuleSet.getInstance().modulesByName
+						.get(entryLabel.toModuleName);
+				if (((ModuleNode) edge.getToNode()).isBlackBoxSingleton())
+					blackBoxLinkedModules.add(module);
 				else
-					whiteBoxLinkedModules.add(cluster);
-			} else if ((edge.getToNode() instanceof ClusterBoundaryNode)
-					&& edge.getFromNode().getModule().unit.isAnonymous) {
-				AutonomousSoftwareDistribution cluster = ConfiguredSoftwareDistributions.getInstance()
-						.getClusterByAnonymousExitHash(edge.getToNode().getHash());
-				if (((ClusterNode) edge.getFromNode()).isBlackBoxSingleton())
-					blackBoxLinkedModules.add(cluster);
+					whiteBoxLinkedModules.add(module);
+			} else if ((edge.getToNode() instanceof ModuleBoundaryNode) && edge.getFromNode().getModule().isAnonymous) {
+				ModuleBoundaryNode.HashLabel exitLabel = ApplicationModuleSet.getInstance().crossModuleLabels.get(edge
+						.getToNode().getHash());
+				ApplicationModule module = ApplicationModuleSet.getInstance().modulesByName
+						.get(exitLabel.fromModuleName);
+				if (((ModuleNode) edge.getFromNode()).isBlackBoxSingleton())
+					blackBoxLinkedModules.add(module);
 				else
-					whiteBoxLinkedModules.add(cluster);
+					whiteBoxLinkedModules.add(module);
 			}
 
 			/**
@@ -142,7 +145,7 @@ public class AdHocGraphAnalyzer {
 		}
 
 		@Override
-		public void graphAddition(Node<?> node, ModuleGraphCluster<?> cluster) {
+		public void graphAddition(Node<?> node, ModuleGraph<?> cluster) {
 		}
 	}
 
@@ -188,14 +191,14 @@ public class AdHocGraphAnalyzer {
 	private void analyzeClusterGraph(File directory) throws IOException {
 		Log.log("Ad hoc graph analysis of directory '%s'", directory.getName());
 
-		ModuleGraphCluster<?> mainGraph = null;
+		ModuleGraph<?> mainGraph = null;
 
 		ClusterTraceDataSource dataSource = new ClusterTraceDirectory(directory).loadExistingFiles();
-		ClusterGraphLoadSession loadSession = new ClusterGraphLoadSession(dataSource);
+		ModuleGraphLoadSession loadSession = new ModuleGraphLoadSession(dataSource);
 		LoadListener listener = new LoadListener();
-		for (AutonomousSoftwareDistribution cluster : dataSource.getReprsentedClusters()) {
-			if (options.includeCluster(cluster)) {
-				ModuleGraphCluster<?> graph = loadSession.loadClusterGraph(cluster, listener);
+		for (ApplicationModule module : dataSource.getReprsentedModules()) {
+			if (options.includeModule(module)) {
+				ModuleGraph<?> graph = loadSession.loadModuleGraph(module, listener);
 
 				if (graph.metadata.isMain())
 					mainGraph = graph;

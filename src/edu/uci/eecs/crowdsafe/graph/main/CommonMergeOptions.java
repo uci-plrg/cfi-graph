@@ -2,7 +2,6 @@ package edu.uci.eecs.crowdsafe.graph.main;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -12,8 +11,8 @@ import edu.uci.eecs.crowdsafe.common.config.CrowdSafeConfiguration;
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
-import edu.uci.eecs.crowdsafe.graph.data.dist.AutonomousSoftwareDistribution;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ConfiguredSoftwareDistributions;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModuleSet;
 
 public class CommonMergeOptions {
 
@@ -50,16 +49,16 @@ public class CommonMergeOptions {
 		CrowdSafeConfiguration
 				.initialize(new CrowdSafeConfiguration.Environment[] { CrowdSafeConfiguration.Environment.CROWD_SAFE_COMMON_DIR });
 
-		ConfiguredSoftwareDistributions.ClusterMode clusterMode;
+		ApplicationModuleSet.ClusterMode clusterMode;
 		if (unitClusterOption.hasValue())
-			clusterMode = ConfiguredSoftwareDistributions.ClusterMode.UNIT;
+			clusterMode = ApplicationModuleSet.ClusterMode.UNIT;
 		else
-			clusterMode = ConfiguredSoftwareDistributions.ClusterMode.GROUP;
+			clusterMode = ApplicationModuleSet.ClusterMode.GROUP;
 
 		if (crowdSafeCommonDir.getValue() == null) {
-			ConfiguredSoftwareDistributions.initialize(clusterMode);
+			ApplicationModuleSet.initialize();
 		} else {
-			ConfiguredSoftwareDistributions.initialize(clusterMode, new File(crowdSafeCommonDir.getValue()));
+			ApplicationModuleSet.initialize(new File(crowdSafeCommonDir.getValue()));
 		}
 
 		if (restrictedClusterOption.hasValue()) {
@@ -77,12 +76,11 @@ public class CommonMergeOptions {
 		}
 	}
 
-	public boolean includeCluster(AutonomousSoftwareDistribution cluster) {
+	public boolean includeModule(ApplicationModule cluster) {
 		if (explicitClusterNames.isEmpty()) {
-			return !(excludedClusterNames.contains(cluster.name) || excludedClusterNames.contains(cluster
-					.getUnitFilename()));
+			return !(excludedClusterNames.contains(cluster.name) || excludedClusterNames.contains(cluster.filename));
 		}
 
-		return (explicitClusterNames.contains(cluster.name) || explicitClusterNames.contains(cluster.getUnitFilename()));
+		return (explicitClusterNames.contains(cluster.name) || explicitClusterNames.contains(cluster.filename));
 	}
 }

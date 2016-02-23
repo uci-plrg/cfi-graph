@@ -4,9 +4,9 @@ import java.util.Comparator;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.writer.ClusterDataWriter;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.writer.ModuleDataWriter;
 
-public class RawEdge implements ClusterDataWriter.Edge<IndexedClusterNode> {
+public class RawEdge implements ModuleDataWriter.Edge<IndexedModuleNode> {
 
 	static class EdgeIndexSorter implements Comparator<RawEdge> {
 		static EdgeIndexSorter INSTANCE = new EdgeIndexSorter();
@@ -18,12 +18,12 @@ public class RawEdge implements ClusterDataWriter.Edge<IndexedClusterNode> {
 	}
 
 	private int edgeIndex;
-	public final IndexedClusterNode fromNode;
-	public final IndexedClusterNode toNode;
+	public final IndexedModuleNode fromNode;
+	public final IndexedModuleNode toNode;
 	public final EdgeType type;
 	public final int ordinal;
 
-	RawEdge(IndexedClusterNode fromNode, IndexedClusterNode toNode, EdgeType type, int ordinal) {
+	RawEdge(IndexedModuleNode fromNode, IndexedModuleNode toNode, EdgeType type, int ordinal) {
 		this.fromNode = fromNode;
 		this.toNode = toNode;
 		this.type = type;
@@ -34,12 +34,12 @@ public class RawEdge implements ClusterDataWriter.Edge<IndexedClusterNode> {
 	}
 
 	@Override
-	public IndexedClusterNode getFromNode() {
+	public IndexedModuleNode getFromNode() {
 		return fromNode;
 	}
 
 	@Override
-	public IndexedClusterNode getToNode() {
+	public IndexedModuleNode getToNode() {
 		return toNode;
 	}
 
@@ -55,12 +55,12 @@ public class RawEdge implements ClusterDataWriter.Edge<IndexedClusterNode> {
 	
 	@Override
 	public boolean isClusterEntry() {
-		return fromNode.cluster != toNode.cluster; // EDGE: verify
+		return fromNode.module != toNode.module; // EDGE: verify
 	}
 	
 	@Override
 	public boolean isClusterExit() {
-		return fromNode.cluster != toNode.cluster;
+		return fromNode.module != toNode.module;
 	}
 
 	public int getEdgeIndex() {

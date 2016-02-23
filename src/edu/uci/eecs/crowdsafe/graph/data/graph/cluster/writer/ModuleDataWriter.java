@@ -10,12 +10,11 @@ import java.util.UUID;
 
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianOutputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
-import edu.uci.eecs.crowdsafe.graph.data.dist.AutonomousSoftwareDistribution;
-import edu.uci.eecs.crowdsafe.graph.data.dist.SoftwareModule;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.NodeIdentifier;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterBoundaryNode;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleBoundaryNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterMetadata;
 import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterMetadataExecution;
 import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterMetadataSequence;
@@ -28,14 +27,14 @@ import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDataSink;
 import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDirectory;
 import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceStreamType;
 
-public class ClusterDataWriter<NodeType extends NodeIdentifier> {
+public class ModuleDataWriter<NodeType extends NodeIdentifier> {
 
-	public interface ClusterData<NodeType extends NodeIdentifier> {
-		AutonomousSoftwareDistribution getCluster();
+	public interface ModularData<NodeType extends NodeIdentifier> {
+		ApplicationModule getModule();
 
-		int getModuleIndex(SoftwareModule module);
+		int getModuleIndex(ApplicationModule module);
 
-		Iterable<? extends SoftwareModule> getSortedModuleList();
+		Iterable<? extends ApplicationModule> getSortedModuleList();
 
 		int getNodeIndex(NodeType node);
 	}
@@ -58,28 +57,28 @@ public class ClusterDataWriter<NodeType extends NodeIdentifier> {
 		private final ClusterTraceDataSink dataSink;
 		private final String filenameFormat;
 
-		private final Map<AutonomousSoftwareDistribution, ClusterDataWriter<NodeType>> outputsByCluster = new HashMap<AutonomousSoftwareDistribution, ClusterDataWriter<NodeType>>();
+		private final Map<ApplicationModule, ModuleDataWriter<NodeType>> outputsByCluster = new HashMap<ApplicationModule, ModuleDataWriter<NodeType>>();
 
 		public Directory(File directory, String processName) {
 			dataSink = new ClusterTraceDirectory(directory);
 			filenameFormat = String.format("%s.%%s.%%s.%%s", processName);
 		}
 
-		public void establishClusterWriters(ClusterData<NodeType> data) throws IOException {
-			ClusterDataWriter<NodeType> writer = getWriter(data.getCluster());
+		public void establishModuleWriters(ModularData<NodeType> data) throws IOException {
+			ModuleDataWriter<NodeType> writer = getWriter(data.getModule());
 			if (writer == null) {
-				dataSink.addCluster(data.getCluster(), filenameFormat);
-				writer = new ClusterDataWriter<NodeType>(data, dataSink);
-				outputsByCluster.put(data.getCluster(), writer);
+				dataSink.addCluster(data.getModule(), filenameFormat);
+				writer = new ModuleDataWriter<NodeType>(data, dataSink);
+				outputsByCluster.put(data.getModule(), writer);
 			}
 		}
 
-		public ClusterDataWriter<NodeType> getWriter(AutonomousSoftwareDistribution cluster) {
+		public ModuleDataWriter<NodeType> getWriter(ApplicationModule cluster) {
 			return outputsByCluster.get(cluster);
 		}
 
 		public void flush() throws IOException {
-			for (ClusterDataWriter<NodeType> output : outputsByCluster.values()) {
+			for (ModuleDataWriter<NodeType> output : outputsByCluster.values()) {
 				output.flush();
 			}
 		}
@@ -88,18 +87,15 @@ public class ClusterDataWriter<NodeType extends NodeIdentifier> {
 	final LittleEndianOutputStream nodeStream;
 	final LittleEndianOutputStream edgeStream;
 	final LittleEndianOutputStream metaStream;
-	final BufferedWriter moduleWriter;
 
-	private final ClusterData<NodeType> data;
+	private final ModularData<NodeType> data;
 
-	ClusterDataWriter(ClusterData<NodeType> data, ClusterTraceDataSink dataSink) throws IOException {
+	ModuleDataWriter(ModularData<NodeType> data, ClusterTraceDataSink dataSink) throws IOException {
 		this.data = data;
 
-		nodeStream = dataSink.getLittleEndianOutputStream(data.getCluster(), ClusterTraceStreamType.GRAPH_NODE);
-		edgeStream = dataSink.getLittleEndianOutputStream(data.getCluster(), ClusterTraceStreamType.GRAPH_EDGE);
-		metaStream = dataSink.getLittleEndianOutputStream(data.getCluster(), ClusterTraceStreamType.META);
-		moduleWriter = new BufferedWriter(new OutputStreamWriter(dataSink.getDataOutputStream(data.getCluster(),
-				ClusterTraceStreamType.MODULE)));
+		nodeStream = dataSink.getLittleEndianOutputStream(data.getModule(), ClusterTraceStreamType.GRAPH_NODE);
+		edgeStream = dataSink.getLittleEndianOutputStream(data.getModule(), ClusterTraceStreamType.GRAPH_EDGE);
+		metaStream = dataSink.getLittleEndianOutputStream(data.getModule(), ClusterTraceStreamType.META);
 	}
 
 	public void writeNode(NodeType node) throws IOException {
@@ -145,7 +141,7 @@ public class ClusterDataWriter<NodeType extends NodeIdentifier> {
 	}
 
 	public void writeMetadataHistory(ClusterMetadata metadata,
-			Map<edu.uci.eecs.crowdsafe.graph.data.graph.Edge<ClusterNode<?>>, Integer> edgeIndexMap) throws IOException {
+			Map<edu.uci.eecs.crowdsafe.graph.data.graph.Edge<ModuleNode<?>>, Integer> edgeIndexMap) throws IOException {
 		writeMetadataHeader(metadata.isMain());
 		for (ClusterMetadataSequence sequence : metadata.sequences.values()) {
 			writeSequenceMetadataHeader(sequence.executions.size(), sequence.isRoot());
@@ -213,15 +209,6 @@ public class ClusterDataWriter<NodeType extends NodeIdentifier> {
 		metaStream.writeLong(word);
 	}
 
-	public void writeModules() throws IOException {
-		for (SoftwareModule module : data.getSortedModuleList()) {
-			if (module.equals(ClusterBoundaryNode.BOUNDARY_MODULE))
-				continue;
-
-			moduleWriter.write(module.unit.name);
-		}
-	}
-
 	public void flush() throws IOException {
 		nodeStream.flush();
 		nodeStream.close();
@@ -229,7 +216,5 @@ public class ClusterDataWriter<NodeType extends NodeIdentifier> {
 		edgeStream.close();
 		metaStream.flush();
 		metaStream.close();
-		moduleWriter.flush();
-		moduleWriter.close();
 	}
 }

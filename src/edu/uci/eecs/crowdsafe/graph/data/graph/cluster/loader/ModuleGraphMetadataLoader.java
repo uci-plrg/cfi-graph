@@ -9,7 +9,7 @@ import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.OrdinalEdgeList;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterMetadataExecution;
 import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterMetadataSequence;
 import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterSGE;
@@ -17,14 +17,14 @@ import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterSSC;
 import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterUIB;
 import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterUIBInterval;
 
-public class ClusterGraphMetadataLoader {
+public class ModuleGraphMetadataLoader {
 
 	private static final int ENTRY_BYTE_COUNT = 0x8;
 
 	private final LittleEndianInputStream input;
-	private final List<Edge<ClusterNode<?>>> edgeList;
+	private final List<Edge<ModuleNode<?>>> edgeList;
 
-	ClusterGraphMetadataLoader(List<Edge<ClusterNode<?>>> edgeList, LittleEndianInputStream input) {
+	ModuleGraphMetadataLoader(List<Edge<ModuleNode<?>>> edgeList, LittleEndianInputStream input) {
 		this.edgeList = edgeList;
 		this.input = input;
 	}
@@ -86,11 +86,11 @@ public class ClusterGraphMetadataLoader {
 			boolean isAdmitted = ((uibData & 0x8000000000000000L) == 0x8000000000000000L);
 
 			// hack--correcting the cluster entry edge type modeling error
-			Edge<ClusterNode<?>> uibEdge = edgeList.get(edgeIndex);
+			Edge<ModuleNode<?>> uibEdge = edgeList.get(edgeIndex);
 			if ((uibEdge != null) && !isAdmitted) { // UIB-FIX: if left graph, need to check edges on the right
-				OrdinalEdgeList<ClusterNode<?>> edges = uibEdge.getToNode().getIncomingEdges();
+				OrdinalEdgeList<ModuleNode<?>> edges = uibEdge.getToNode().getIncomingEdges();
 				try {
-					for (Edge<ClusterNode<?>> edge : edges) {
+					for (Edge<ModuleNode<?>> edge : edges) {
 						if ((edge != uibEdge) && (edge.getEdgeType() == EdgeType.INDIRECT)) {
 							isAdmitted = true;
 							break;

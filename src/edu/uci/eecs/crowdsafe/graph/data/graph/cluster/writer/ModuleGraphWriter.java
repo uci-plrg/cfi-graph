@@ -7,45 +7,43 @@ import java.util.List;
 import java.util.Map;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
-import edu.uci.eecs.crowdsafe.graph.data.dist.AutonomousSoftwareDistribution;
-import edu.uci.eecs.crowdsafe.graph.data.dist.SoftwareModule;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterGraph;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterModule;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ApplicationGraph;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterMetadataExecution;
 import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterMetadataSequence;
 import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterUIB;
 import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDataSink;
 
-public class ClusterGraphWriter implements ClusterDataWriter.ClusterData<ClusterNode<?>> {
+public class ModuleGraphWriter implements ModuleDataWriter.ModularData<ModuleNode<?>> {
 
-	private final ClusterGraph graph;
+	private final ApplicationGraph graph;
 
-	private final Map<ClusterNode<?>, Integer> nodeIndexMap = new HashMap<ClusterNode<?>, Integer>();
-	private final List<Edge<ClusterNode<?>>> allEdges = new ArrayList<Edge<ClusterNode<?>>>();
+	private final Map<ModuleNode<?>, Integer> nodeIndexMap = new HashMap<ModuleNode<?>, Integer>();
+	private final List<Edge<ModuleNode<?>>> allEdges = new ArrayList<Edge<ModuleNode<?>>>();
 
-	private final ClusterDataWriter<ClusterNode<?>> dataWriter;
+	private final ModuleDataWriter<ModuleNode<?>> dataWriter;
 
-	public ClusterGraphWriter(ClusterGraph graph, ClusterTraceDataSink dataSink) throws IOException {
+	public ModuleGraphWriter(ApplicationGraph graph, ClusterTraceDataSink dataSink) throws IOException {
 		this.graph = graph;
 
-		dataWriter = new ClusterDataWriter<ClusterNode<?>>(this, dataSink);
+		dataWriter = new ModuleDataWriter<ModuleNode<?>>(this, dataSink);
 	}
 
 	public void writeGraph() throws IOException {
-		for (ClusterNode<?> node : graph.graph.getAllNodes()) {
+		for (ModuleNode<?> node : graph.graph.getAllNodes()) {
 			nodeIndexMap.put(node, nodeIndexMap.size());
 			dataWriter.writeNode(node);
 
-			for (Edge<ClusterNode<?>> edge : node.getOutgoingEdges()) {
+			for (Edge<ModuleNode<?>> edge : node.getOutgoingEdges()) {
 				allEdges.add(edge);
 			}
 		}
 
 		int edgeIndex = 0;
-		Map<Edge<ClusterNode<?>>, Integer> edgeIndexMap = new HashMap<Edge<ClusterNode<?>>, Integer>();
-		for (Edge<ClusterNode<?>> edge : allEdges) {
+		Map<Edge<ModuleNode<?>>, Integer> edgeIndexMap = new HashMap<Edge<ModuleNode<?>>, Integer>();
+		for (Edge<ModuleNode<?>> edge : allEdges) {
 			dataWriter.writeEdge(edge);
 			edgeIndexMap.put(edge, edgeIndex++);
 		}
@@ -62,28 +60,26 @@ public class ClusterGraphWriter implements ClusterDataWriter.ClusterData<Cluster
 		}
 
 		dataWriter.writeMetadataHistory(graph.graph.metadata, edgeIndexMap);
-		dataWriter.writeModules();
-
 		dataWriter.flush();
 	}
 
 	@Override
-	public AutonomousSoftwareDistribution getCluster() {
-		return graph.graph.cluster;
+	public ApplicationModule getModule() {
+		return graph.graph.module;
 	}
 
 	@Override
-	public int getModuleIndex(SoftwareModule module) {
-		return ((ClusterModule) module).id;
+	public int getModuleIndex(ApplicationModule module) {
+		return graph.modules.get(module);
 	}
 
 	@Override
-	public Iterable<? extends SoftwareModule> getSortedModuleList() {
-		return graph.moduleList.sortById();
+	public Iterable<? extends ApplicationModule> getSortedModuleList() {
+		return graph.modules.keySet();
 	}
 
 	@Override
-	public int getNodeIndex(ClusterNode<?> node) {
+	public int getNodeIndex(ModuleNode<?> node) {
 		return nodeIndexMap.get(node);
 	}
 }

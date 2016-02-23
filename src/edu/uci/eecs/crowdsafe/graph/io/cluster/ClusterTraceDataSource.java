@@ -6,19 +6,19 @@ import java.io.InputStream;
 import java.util.Collection;
 
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
-import edu.uci.eecs.crowdsafe.graph.data.dist.AutonomousSoftwareDistribution;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
 
 public interface ClusterTraceDataSource {
 	
 	File getDirectory();
 	
-	Collection<AutonomousSoftwareDistribution> getReprsentedClusters();
+	Collection<ApplicationModule> getReprsentedModules();
 	
 	String parseTraceName();
 	
-	InputStream getDataInputStream(AutonomousSoftwareDistribution cluster, ClusterTraceStreamType streamType)
+	InputStream getDataInputStream(ApplicationModule cluster, ClusterTraceStreamType streamType)
 			throws IOException;
 
-	LittleEndianInputStream getLittleEndianInputStream(AutonomousSoftwareDistribution cluster,
+	LittleEndianInputStream getLittleEndianInputStream(ApplicationModule cluster,
 			ClusterTraceStreamType streamType) throws IOException;
 }

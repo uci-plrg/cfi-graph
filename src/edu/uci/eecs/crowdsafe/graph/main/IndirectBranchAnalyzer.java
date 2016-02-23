@@ -9,17 +9,17 @@ import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
 import edu.uci.eecs.crowdsafe.graph.data.ModuleRelocations;
-import edu.uci.eecs.crowdsafe.graph.data.dist.AutonomousSoftwareDistribution;
+import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
-import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraphCluster;
+import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Node;
 import edu.uci.eecs.crowdsafe.graph.data.graph.NodeHashMap;
 import edu.uci.eecs.crowdsafe.graph.data.graph.NodeList;
 import edu.uci.eecs.crowdsafe.graph.data.graph.OrdinalEdgeList;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterNode;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.loader.ClusterGraphLoadSession;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.loader.ModuleGraphLoadSession;
 import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDataSource;
 import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDirectory;
 
@@ -146,11 +146,11 @@ public class IndirectBranchAnalyzer {
 	private File relocationDirectory;
 
 	private ClusterTraceDataSource dataSource;
-	private ClusterGraphLoadSession loadSession;
+	private ModuleGraphLoadSession loadSession;
 
 	private EdgeCounter edgeCounter = new EdgeCounter();
 
-	private Map<String, ModuleGraphCluster<ClusterNode<?>>> graphs = new HashMap<String, ModuleGraphCluster<ClusterNode<?>>>();
+	private Map<String, ModuleGraph<ModuleNode<?>>> graphs = new HashMap<String, ModuleGraph<ModuleNode<?>>>();
 	private Map<String, ModuleRelocations> moduleRelocations;
 
 	private IndirectBranchAnalyzer(ArgumentStack args) {
@@ -177,14 +177,14 @@ public class IndirectBranchAnalyzer {
 				}
 
 				dataSource = new ClusterTraceDirectory(directory).loadExistingFiles();
-				loadSession = new ClusterGraphLoadSession(dataSource);
+				loadSession = new ModuleGraphLoadSession(dataSource);
 
-				for (AutonomousSoftwareDistribution cluster : dataSource.getReprsentedClusters()) {
+				for (ApplicationModule cluster : dataSource.getReprsentedModules()) {
 					Log.setSilent(true);
-					ModuleGraphCluster<?> graph = loadSession.loadClusterGraph(cluster);
+					ModuleGraph<?> graph = loadSession.loadClusterGraph(cluster);
 					Log.setSilent(false);
 					edgeCounter.countEdges(graph.getGraphData().nodesByHash,
-							moduleRelocations.get(graph.cluster.getUnitFilename()));
+							moduleRelocations.get(graph.module.filename));
 				}
 			}
 

@@ -52,7 +52,7 @@ public enum EdgeType {
 		return (this == CALL_CONTINUATION) || (this == EXCEPTION_CONTINUATION);
 	}
 
-	public int getClusterEntryOrdinal() {
+	public int getModuleEntryOrdinal() {
 		switch (this) {
 			case INDIRECT:
 				return 0;

@@ -21,7 +21,7 @@ public class RawUnexpectedIndirectBranch {
 
 		@Override
 		public int compare(RawUnexpectedIndirectBranch first, RawUnexpectedIndirectBranch second) {
-			return first.clusterEdge.getEdgeIndex() - second.clusterEdge.getEdgeIndex();
+			return first.moduleEdge.getEdgeIndex() - second.moduleEdge.getEdgeIndex();
 		}
 	}
 
@@ -39,7 +39,7 @@ public class RawUnexpectedIndirectBranch {
 	private int traversalCount;
 	private int instanceCount = 1;
 
-	RawEdge clusterEdge;
+	RawEdge moduleEdge;
 
 	public RawUnexpectedIndirectBranch(int edgeIndex, boolean isCrossModule, boolean isAdmitted, int traversalCount) {
 		this.rawEdgeIndex = edgeIndex;
@@ -58,10 +58,10 @@ public class RawUnexpectedIndirectBranch {
 	void merge(RawUnexpectedIndirectBranch other) {
 		if (isCrossModule != other.isCrossModule)
 			throw new IllegalArgumentException(
-					"Attempt to merge incompatible UIBs: (cross-module x intra-module) on edge " + clusterEdge);
+					"Attempt to merge incompatible UIBs: (cross-module x intra-module) on edge " + moduleEdge);
 		if (isAdmitted != other.isAdmitted) {
-			if (clusterEdge.getToNode().getType() != MetaNodeType.CLUSTER_EXIT)
-				Log.log("Warning: merging incompatible UIBs: (admitted x suspicious) on edge " + clusterEdge);
+			if (moduleEdge.getToNode().getType() != MetaNodeType.MODULE_EXIT)
+				Log.log("Warning: merging incompatible UIBs: (admitted x suspicious) on edge " + moduleEdge);
 
 			isAdmitted = false;
 		}
@@ -74,8 +74,8 @@ public class RawUnexpectedIndirectBranch {
 		return isAdmitted;
 	}
 
-	public int getClusterEdgeIndex() {
-		return clusterEdge.getEdgeIndex();
+	public int getModuleEdgeIndex() {
+		return moduleEdge.getEdgeIndex();
 	}
 
 	public int getTraversalCount() {
