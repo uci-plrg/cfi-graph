@@ -311,7 +311,7 @@ public class ModuleGraphCluster<EdgeEndpointType extends Node<EdgeEndpointType>>
 			return;
 		}
 
-		Log.log("\nGraph traversal for cluster %s", cluster);
+		Log.log("\nGraph traversal for cluster %s (0x%x)", cluster, hashCode());
 
 		Set<EdgeEndpointType> visitedNodes = new HashSet<EdgeEndpointType>();
 		Queue<EdgeEndpointType> bfsQueue = new LinkedList<EdgeEndpointType>();
@@ -333,7 +333,7 @@ public class ModuleGraphCluster<EdgeEndpointType extends Node<EdgeEndpointType>>
 					Log.log(edge);
 
 					count++;
-					if (count > limit)
+					if (count > limit) 
 						break queue;
 				}
 			} finally {
@@ -345,15 +345,15 @@ public class ModuleGraphCluster<EdgeEndpointType extends Node<EdgeEndpointType>>
 	}
 
 	public void logUnreachableGraph() {
-		Log.log("\nGraph traversal for unreachable graph %s", cluster);
+		Log.log("\nGraph traversal for unreachable graph %s (0x%x)", cluster, hashCode());
 
 		for (EdgeEndpointType node : getAllNodes()) {
-			Log.log("%s", node);
+			Log.log("Node: %s", node);
 
 			OrdinalEdgeList<EdgeEndpointType> edgeList = node.getOutgoingEdges();
 			try {
 				for (Edge<EdgeEndpointType> edge : edgeList) {
-					Log.log("Outgoing: %s", edge);
+					Log.log("\tOutgoing: %s", edge);
 				}
 			} finally {
 				edgeList.release();
@@ -361,7 +361,7 @@ public class ModuleGraphCluster<EdgeEndpointType extends Node<EdgeEndpointType>>
 			edgeList = node.getIncomingEdges();
 			try {
 				for (Edge<EdgeEndpointType> edge : edgeList) {
-					Log.log("Incoming: %s", edge);
+					Log.log("\tIncoming: %s", edge);
 				}
 			} finally {
 				edgeList.release();

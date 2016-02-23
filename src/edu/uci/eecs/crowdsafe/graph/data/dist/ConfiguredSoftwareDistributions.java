@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import edu.uci.eecs.crowdsafe.common.config.CrowdSafeConfiguration;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterBoundaryNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterNode;
 import edu.uci.eecs.crowdsafe.graph.util.CrowdSafeTraceUtil;
 
@@ -47,12 +48,13 @@ public class ConfiguredSoftwareDistributions {
 	public final ClusterMode clusterMode;
 	public final Map<String, AutonomousSoftwareDistribution> distributions = new HashMap<String, AutonomousSoftwareDistribution>();
 	public final Map<String, SoftwareUnit> unitsByName = new HashMap<String, SoftwareUnit>();
-	public final Map<Long, SoftwareUnit> unitsByAnonymousEntryHash = new HashMap<Long, SoftwareUnit>();
-	public final Map<Long, SoftwareUnit> unitsByAnonymousExitHash = new HashMap<Long, SoftwareUnit>();
-	public final Map<Long, SoftwareUnit> unitsByInterceptionHash = new HashMap<Long, SoftwareUnit>();
-	public final Map<Long, SoftwareUnit> unitsByAnonymousGencodeHash = new HashMap<Long, SoftwareUnit>();
+	// public final Map<Long, SoftwareUnit> unitsByAnonymousEntryHash = new HashMap<Long, SoftwareUnit>();
+	// public final Map<Long, SoftwareUnit> unitsByAnonymousExitHash = new HashMap<Long, SoftwareUnit>();
+	// public final Map<Long, SoftwareUnit> unitsByInterceptionHash = new HashMap<Long, SoftwareUnit>();
+	// public final Map<Long, SoftwareUnit> unitsByAnonymousGencodeHash = new HashMap<Long, SoftwareUnit>();
 	public final Map<Long, Integer> sysnumsBySyscallHash = new HashMap<Long, Integer>();
 	public final Map<SoftwareUnit, AutonomousSoftwareDistribution> distributionsByUnit = new HashMap<SoftwareUnit, AutonomousSoftwareDistribution>();
+	public final Map<Long, ClusterBoundaryNode.HashLabel> crossModuleLabels = new HashMap<Long, ClusterBoundaryNode.HashLabel>();
 
 	private ConfiguredSoftwareDistributions(ClusterMode clusterMode, File configDir) {
 		this.clusterMode = clusterMode;
@@ -184,10 +186,14 @@ public class ConfiguredSoftwareDistributions {
 
 	private void installCluster(AutonomousSoftwareDistribution cluster, SoftwareUnit unit) {
 		unitsByName.put(unit.name, unit);
-		unitsByAnonymousEntryHash.put(unit.anonymousEntryHash, unit);
-		unitsByAnonymousExitHash.put(unit.anonymousExitHash, unit);
-		unitsByAnonymousGencodeHash.put(unit.anonymousGencodeHash, unit);
-		unitsByInterceptionHash.put(unit.interceptionHash, unit);
+		// unitsByAnonymousEntryHash.put(unit.anonymousEntryHash, unit);
+		// unitsByAnonymousExitHash.put(unit.anonymousExitHash, unit);
+		// unitsByAnonymousGencodeHash.put(unit.anonymousGencodeHash, unit);
+		// unitsByInterceptionHash.put(unit.interceptionHash, unit);
+		crossModuleLabels.put(unit.anonymousEntryHash.hash, unit.anonymousEntryHash);
+		crossModuleLabels.put(unit.anonymousExitHash.hash, unit.anonymousExitHash);
+		crossModuleLabels.put(unit.anonymousGencodeHash.hash, unit.anonymousGencodeHash);
+		crossModuleLabels.put(unit.interceptionHash.hash, unit.interceptionHash);
 		distributionsByUnit.put(unit, cluster);
 		cluster.addUnit(unit);
 	}

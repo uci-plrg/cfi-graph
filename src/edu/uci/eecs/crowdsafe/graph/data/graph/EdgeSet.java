@@ -57,7 +57,8 @@ public class EdgeSet<EdgeEndpointType extends Node<EdgeEndpointType>> {
 			group.type = edge.getEdgeType();
 		} else if (group.type != edge.getEdgeType()) {
 			throw new IllegalArgumentException(String.format(
-					"Attempt to add an edge of type %s to an edge group of type %s!", edge.getEdgeType(), group.type));
+					"Attempt to add an edge of type %s to an edge group of type %s!\n%s", edge.getEdgeType(),
+					group.type, edge));
 		}
 		edges.add(null);
 		int edgePosition = group.position + group.size;

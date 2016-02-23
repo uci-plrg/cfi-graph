@@ -3,7 +3,8 @@ package edu.uci.eecs.crowdsafe.graph.data.dist;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import edu.uci.eecs.crowdsafe.graph.util.CrowdSafeTraceUtil;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterBoundaryNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ClusterBoundaryNode.HashLabel;
 
 public class SoftwareUnit {
 
@@ -19,10 +20,10 @@ public class SoftwareUnit {
 	public final String filename;
 	public final String version;
 	public final boolean isAnonymous;
-	public final long anonymousEntryHash;
-	public final long anonymousExitHash;
-	public final long anonymousGencodeHash;
-	public final long interceptionHash;
+	public final HashLabel anonymousEntryHash;
+	public final HashLabel anonymousExitHash;
+	public final HashLabel anonymousGencodeHash;
+	public final HashLabel interceptionHash;
 
 	SoftwareUnit(String name) {
 		this(name, false);
@@ -42,15 +43,15 @@ public class SoftwareUnit {
 		}
 
 		if (isAnonymous) {
-			anonymousExitHash = 0L;
-			anonymousEntryHash = 0L;
-			anonymousGencodeHash = CrowdSafeTraceUtil.stringHash(String.format("<anonymous>/<anonymous>!gencode", filename));
+			anonymousExitHash = null;
+			anonymousEntryHash = null;
+			anonymousGencodeHash = ClusterBoundaryNode.HashLabel.createGencodeEntry(filename);
 			interceptionHash = 0L;
 		} else {
-			anonymousEntryHash = CrowdSafeTraceUtil.stringHash(String.format("%s/<anonymous>!callback", filename));
-			anonymousExitHash = CrowdSafeTraceUtil.stringHash(String.format("<anonymous>/%s!callback", filename));
-			anonymousGencodeHash = CrowdSafeTraceUtil.stringHash(String.format("%s/<anonymous>!gencode", filename));
-			interceptionHash = CrowdSafeTraceUtil.stringHash(String.format("%s!interception", filename));
+			anonymousEntryHash = ClusterBoundaryNode.HashLabel.createAnonymousEntry(filename);
+			anonymousExitHash = ClusterBoundaryNode.HashLabel.createAnonymousExit(filename);
+			anonymousGencodeHash = ClusterBoundaryNode.HashLabel.createGencodeEntry(filename);
+			interceptionHash = ClusterBoundaryNode.HashLabel.createInterception(filename);
 		}
 	}
 
