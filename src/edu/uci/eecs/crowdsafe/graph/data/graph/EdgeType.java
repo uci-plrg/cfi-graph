@@ -67,7 +67,7 @@ public enum EdgeType {
 			case PROCESS_FORK:
 				return 5;
 			default:
-				throw new IllegalArgumentException(String.format("Edges of type %s cannot be a cluster entry edge!",
+				throw new IllegalArgumentException(String.format("Edges of type %s cannot be a module entry edge!",
 						this));
 		}
 	}

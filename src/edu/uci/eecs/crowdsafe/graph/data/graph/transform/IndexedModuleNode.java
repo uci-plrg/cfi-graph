@@ -1,11 +1,10 @@
 package edu.uci.eecs.crowdsafe.graph.data.graph.transform;
 
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.NodeIdentifier;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleBasicBlock;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleBasicBlock;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleNode;
 
 public class IndexedModuleNode implements NodeIdentifier {
 

@@ -103,10 +103,10 @@ public class ProcessGraphCrossModuleEdgeFactory {
 			// Cross-module edges are not added to any node, but the
 			// edge from signature node to real entry node is preserved.
 			// We only need to add the signature nodes to "nodes"
-			ModuleGraph<ExecutionNode> fromCluster = loader.graph.getModuleGraph(fromModule);
-			ModuleGraph<ExecutionNode> toCluster = loader.graph.getModuleGraph(toModule);
+			ModuleGraph<ExecutionNode> fromGraph = loader.graph.getModuleGraph(fromModule);
+			ModuleGraph<ExecutionNode> toGraph = loader.graph.getModuleGraph(toModule);
 
-			if (fromCluster == toCluster) {
+			if (fromGraph == toGraph) {
 				Edge<ExecutionNode> e = new Edge<ExecutionNode>(fromNode, toNode, edgeType, edgeOrdinal);
 				fromNode.addOutgoingEdge(e);
 				toNode.addIncomingEdge(e);
@@ -116,26 +116,26 @@ public class ProcessGraphCrossModuleEdgeFactory {
 			} else {
 				ExecutionNode exitNode = new ExecutionNode(fromModule, MetaNodeType.MODULE_EXIT, signatureHash, 0,
 						signatureHash, fromNode.getTimestamp());
-				fromCluster.addNode(exitNode);
-				Edge<ExecutionNode> clusterExitEdge = new Edge<ExecutionNode>(fromNode, exitNode, edgeType, 0);
-				fromNode.addOutgoingEdge(clusterExitEdge);
-				exitNode.addIncomingEdge(clusterExitEdge);
+				fromGraph.addNode(exitNode);
+				Edge<ExecutionNode> moduleExitEdge = new Edge<ExecutionNode>(fromNode, exitNode, edgeType, 0);
+				fromNode.addOutgoingEdge(moduleExitEdge);
+				exitNode.addIncomingEdge(moduleExitEdge);
 
 				if (loader.listener != null)
-					loader.listener.edgeCreation(clusterExitEdge);
+					loader.listener.edgeCreation(moduleExitEdge);
 
-				ExecutionNode entryNode = toCluster.getEntryPoint(signatureHash);
+				ExecutionNode entryNode = toGraph.getEntryPoint(signatureHash);
 				if (entryNode == null) {
 					entryNode = new ExecutionNode(toModule, MetaNodeType.MODULE_ENTRY, 0L, 0, signatureHash,
 							toNode.getTimestamp());
-					toCluster.addClusterEntryNode(entryNode);
+					toGraph.addModuleEntryNode(entryNode);
 				}
-				Edge<ExecutionNode> clusterEntryEdge = new Edge<ExecutionNode>(entryNode, toNode, edgeType, 0);
-				entryNode.addOutgoingEdge(clusterEntryEdge);
-				toNode.addIncomingEdge(clusterEntryEdge);
+				Edge<ExecutionNode> moduleEntryEdge = new Edge<ExecutionNode>(entryNode, toNode, edgeType, 0);
+				entryNode.addOutgoingEdge(moduleEntryEdge);
+				toNode.addIncomingEdge(moduleEntryEdge);
 
 				if (loader.listener != null)
-					loader.listener.edgeCreation(clusterEntryEdge);
+					loader.listener.edgeCreation(moduleEntryEdge);
 			}
 		}
 	}

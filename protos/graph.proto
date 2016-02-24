@@ -6,36 +6,36 @@ option java_outer_classname = "Graph";
 message Process {
   optional int32 id = 1;
   optional string name = 2;
-  repeated Cluster cluster = 3;
+  repeated Module module = 3;
   optional ProcessMetadata metadata = 4;
 }
 
-message Cluster {
+message Module {
   optional string distribution_name = 1;
   optional int32 node_count = 2;
   optional int32 executable_node_count = 3;
   optional int32 entry_point_count = 4;
   optional int32 callback_entry_count = 9;
-  repeated ModuleInstance module = 5;
+  repeated ModuleInstance instance = 5;
   repeated UnreachableNode unreachable = 6;
   repeated EdgeTypeCount intra_module_edge_count = 7;
   repeated EdgeTypeCount inter_module_edge_count = 8;
   optional ModuleMetadata metadata = 10;
 }
 
-message Module {
+message ModuleVersion {
   optional string name = 1;
   optional string version = 2;
 }
 
 message ModuleInstance {
-  optional Module module = 1;
+  optional ModuleVersion version = 1;
   optional int32 node_count = 2;
   optional ModuleMetadata metadata = 3;
 }
 
 message Node {
-  optional Module module = 1;
+  optional ModuleVersion version = 1;
   optional int32 relative_tag = 2;
   optional int32 tag_version = 3;
   optional int64 hashcode = 4;

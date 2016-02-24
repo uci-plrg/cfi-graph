@@ -139,9 +139,9 @@ public class ExecutionNode extends Node<ExecutionNode> {
 	public String identify() {
 		switch (metaNodeType) {
 			case MODULE_ENTRY:
-				return String.format("ClusterEntry(0x%x)", hash);
+				return String.format("ModuleEntry(0x%x)", hash);
 			case MODULE_EXIT:
-				return String.format("ClusterExit(0x%x)", hash);
+				return String.format("ModuleExit(0x%x)", hash);
 			default:
 				return String.format("%s(0x%x-v%d|0x%x)", key.module.filename, key.relativeTag, key.version, hash);
 		}

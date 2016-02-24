@@ -9,16 +9,16 @@ import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
 import edu.uci.eecs.crowdsafe.graph.data.DataMessageType;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.loader.ModuleGraphLoadSession;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ProcessExecutionGraph;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.loader.ProcessGraphLoadSession;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.loader.ModuleGraphLoadSession;
 import edu.uci.eecs.crowdsafe.graph.data.results.Graph;
-import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDataSource;
-import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDirectory;
 import edu.uci.eecs.crowdsafe.graph.io.execution.ExecutionTraceDataSource;
 import edu.uci.eecs.crowdsafe.graph.io.execution.ExecutionTraceDirectory;
+import edu.uci.eecs.crowdsafe.graph.io.modular.ModularTraceDataSource;
+import edu.uci.eecs.crowdsafe.graph.io.modular.ModularTraceDirectory;
 
 public class GraphSummaryPrinter {
 
@@ -31,8 +31,8 @@ public class GraphSummaryPrinter {
 	private GraphSummaryPrinter(ArgumentStack args) {
 		this.args = args;
 		this.options = new CommonMergeOptions(args, CommonMergeOptions.crowdSafeCommonDir,
-				CommonMergeOptions.restrictedClusterOption, CommonMergeOptions.unitClusterOption,
-				CommonMergeOptions.excludeClusterOption, outputOption);
+				CommonMergeOptions.restrictedModuleOption, CommonMergeOptions.unitModuleOption,
+				CommonMergeOptions.excludeModuleOption, outputOption);
 	}
 
 	private void run() {
@@ -59,7 +59,7 @@ public class GraphSummaryPrinter {
 			Graph.Process process = null;
 			switch (path.charAt(0)) {
 				case 'c':
-					process = summarizeClusterGraph(directory);
+					process = summarizeModularGraph(directory);
 					break;
 				case 'e':
 					process = summarizeExecutionGraph(directory);
@@ -75,17 +75,17 @@ public class GraphSummaryPrinter {
 		}
 	}
 
-	private Graph.Process summarizeClusterGraph(File directory) throws IOException {
+	private Graph.Process summarizeModularGraph(File directory) throws IOException {
 		Graph.Process.Builder processBuilder = Graph.Process.newBuilder();
 		processBuilder.setName(directory.getName());
 
 		ModuleGraph<?> mainGraph = null;
 
-		ClusterTraceDataSource dataSource = new ClusterTraceDirectory(directory).loadExistingFiles();
+		ModularTraceDataSource dataSource = new ModularTraceDirectory(directory).loadExistingFiles();
 		ModuleGraphLoadSession loadSession = new ModuleGraphLoadSession(dataSource);
 		for (ApplicationModule module : dataSource.getReprsentedModules()) {
-			ModuleGraph<?> graph = loadSession.loadClusterGraph(module);
-			processBuilder.addCluster(graph.summarize(module.isAnonymous));
+			ModuleGraph<?> graph = loadSession.loadModuleGraph(module);
+			processBuilder.addModule(graph.summarize(module.isAnonymous));
 
 			if (graph.metadata.isMain())
 				mainGraph = graph;

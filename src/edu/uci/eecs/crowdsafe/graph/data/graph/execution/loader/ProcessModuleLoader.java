@@ -10,8 +10,8 @@ import java.util.regex.Pattern;
 
 import edu.uci.eecs.crowdsafe.common.exception.InvalidGraphException;
 import edu.uci.eecs.crowdsafe.common.exception.OverlapModuleException;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModuleSet;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModuleSet;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ModuleInstance;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ProcessExecutionModuleSet;
 import edu.uci.eecs.crowdsafe.graph.io.execution.ExecutionTraceDataSource;
@@ -24,7 +24,7 @@ public class ProcessModuleLoader {
 		final long startAddress;
 
 		PendingModuleKey(String unitName, long startAddress) {
-			this.unit = ApplicationModuleSet.getInstance().establishUnitByName(unitName);
+			this.unit = ApplicationModuleSet.getInstance().establishModuleById(unitName);
 			this.startAddress = startAddress;
 		}
 

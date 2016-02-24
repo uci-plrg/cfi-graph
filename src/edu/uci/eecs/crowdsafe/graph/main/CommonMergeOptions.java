@@ -11,22 +11,22 @@ import edu.uci.eecs.crowdsafe.common.config.CrowdSafeConfiguration;
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModuleSet;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModuleSet;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
 
 public class CommonMergeOptions {
 
 	public static final OptionArgumentMap.StringOption crowdSafeCommonDir = OptionArgumentMap.createStringOption('d');
-	public static final OptionArgumentMap.StringOption restrictedClusterOption = OptionArgumentMap
+	public static final OptionArgumentMap.StringOption restrictedModuleOption = OptionArgumentMap
 			.createStringOption('c');
-	public static final OptionArgumentMap.BooleanOption unitClusterOption = OptionArgumentMap.createBooleanOption('u',
+	public static final OptionArgumentMap.BooleanOption unitModuleOption = OptionArgumentMap.createBooleanOption('u',
 			true);
-	public static final OptionArgumentMap.StringOption excludeClusterOption = OptionArgumentMap.createStringOption('x');
+	public static final OptionArgumentMap.StringOption excludeModuleOption = OptionArgumentMap.createStringOption('x');
 
 	private final OptionArgumentMap map;
 
-	private final Set<String> explicitClusterNames = new HashSet<String>();
-	private final Set<String> excludedClusterNames = new HashSet<String>();
+	private final Set<String> explicitModuleNames = new HashSet<String>();
+	private final Set<String> excludedModuleNames = new HashSet<String>();
 
 	public CommonMergeOptions(ArgumentStack args, OptionArgumentMap.Option<?>... options) {
 		List<OptionArgumentMap.Option<?>> allOptions = new ArrayList<OptionArgumentMap.Option<?>>();
@@ -39,8 +39,8 @@ public class CommonMergeOptions {
 	public void parseOptions() {
 		map.parseOptions();
 
-		if (restrictedClusterOption.hasValue() && excludeClusterOption.hasValue()) {
-			Log.log("Option 'cluster inclusion' (-c) and 'cluster exclusion' (-x) may not be used together. Exiting now.");
+		if (restrictedModuleOption.hasValue() && excludeModuleOption.hasValue()) {
+			Log.log("Option 'module inclusion' (-c) and 'module exclusion' (-x) may not be used together. Exiting now.");
 			System.exit(1);
 		}
 	}
@@ -49,38 +49,32 @@ public class CommonMergeOptions {
 		CrowdSafeConfiguration
 				.initialize(new CrowdSafeConfiguration.Environment[] { CrowdSafeConfiguration.Environment.CROWD_SAFE_COMMON_DIR });
 
-		ApplicationModuleSet.ClusterMode clusterMode;
-		if (unitClusterOption.hasValue())
-			clusterMode = ApplicationModuleSet.ClusterMode.UNIT;
-		else
-			clusterMode = ApplicationModuleSet.ClusterMode.GROUP;
-
 		if (crowdSafeCommonDir.getValue() == null) {
 			ApplicationModuleSet.initialize();
 		} else {
 			ApplicationModuleSet.initialize(new File(crowdSafeCommonDir.getValue()));
 		}
 
-		if (restrictedClusterOption.hasValue()) {
-			StringTokenizer clusterNames = new StringTokenizer(restrictedClusterOption.getValue(), ",");
-			while (clusterNames.hasMoreTokens()) {
-				explicitClusterNames.add(clusterNames.nextToken());
+		if (restrictedModuleOption.hasValue()) {
+			StringTokenizer moduleNames = new StringTokenizer(restrictedModuleOption.getValue(), ",");
+			while (moduleNames.hasMoreTokens()) {
+				explicitModuleNames.add(moduleNames.nextToken());
 			}
 		} else {
-			if (excludeClusterOption.hasValue()) {
-				StringTokenizer clusterNames = new StringTokenizer(excludeClusterOption.getValue(), ",");
-				while (clusterNames.hasMoreTokens()) {
-					excludedClusterNames.add(clusterNames.nextToken());
+			if (excludeModuleOption.hasValue()) {
+				StringTokenizer moduleNames = new StringTokenizer(excludeModuleOption.getValue(), ",");
+				while (moduleNames.hasMoreTokens()) {
+					excludedModuleNames.add(moduleNames.nextToken());
 				}
 			}
 		}
 	}
 
-	public boolean includeModule(ApplicationModule cluster) {
-		if (explicitClusterNames.isEmpty()) {
-			return !(excludedClusterNames.contains(cluster.name) || excludedClusterNames.contains(cluster.filename));
+	public boolean includeModule(ApplicationModule module) {
+		if (explicitModuleNames.isEmpty()) {
+			return !(excludedModuleNames.contains(module.name) || excludedModuleNames.contains(module.filename));
 		}
 
-		return (explicitClusterNames.contains(cluster.name) || explicitClusterNames.contains(cluster.filename));
+		return (explicitModuleNames.contains(module.name) || explicitModuleNames.contains(module.filename));
 	}
 }

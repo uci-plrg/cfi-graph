@@ -6,8 +6,8 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModuleSet;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModuleSet;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
 import edu.uci.eecs.crowdsafe.graph.data.results.Graph;
 import edu.uci.eecs.crowdsafe.graph.io.execution.ExecutionTraceDataSource;
@@ -64,12 +64,12 @@ public class ProcessExecutionGraph {
 		this.modules = modules;
 
 		for (ApplicationModule module : ApplicationModuleSet.getInstance().modulesByName.values()) {
-			ModuleGraph<ExecutionNode> moduleCluster = new ModuleGraph<ExecutionNode>(name, module);
-			moduleGraphs.put(module, moduleCluster);
+			ModuleGraph<ExecutionNode> graph = new ModuleGraph<ExecutionNode>(name, module);
+			moduleGraphs.put(module, graph);
 		}
 	}
 
-	public void trimEmptyClusters() {
+	public void trimEmptyModules() {
 		for (Map.Entry<ApplicationModule, ModuleGraph<ExecutionNode>> entry : new ArrayList<Map.Entry<ApplicationModule, ModuleGraph<ExecutionNode>>>(
 				moduleGraphs.entrySet())) {
 			if (entry.getValue().hasNodes())
@@ -89,14 +89,14 @@ public class ProcessExecutionGraph {
 			return graph;
 	}
 
-	public Collection<ApplicationModule> getRepresentedClusters() {
+	public Collection<ApplicationModule> getRepresentedModules() {
 		return moduleGraphs.keySet();
 	}
 
 	public int calculateTotalNodeCount() {
 		int count = 0;
-		for (ModuleGraph<ExecutionNode> cluster : moduleGraphs.values()) {
-			count += cluster.getNodeCount();
+		for (ModuleGraph<ExecutionNode> graph : moduleGraphs.values()) {
+			count += graph.getNodeCount();
 		}
 		return count;
 	}
@@ -106,10 +106,10 @@ public class ProcessExecutionGraph {
 		processBuilder.setId(dataSource.getProcessId());
 		processBuilder.setName(dataSource.getProcessName());
 
-		for (ApplicationModule dist : moduleGraphs.keySet()) {
-			ModuleGraph<ExecutionNode> cluster = moduleGraphs.get(dist);
-			cluster.analyzeGraph(cluster.module.isAnonymous);
-			processBuilder.addCluster(cluster.summarize(cluster.module.isAnonymous));
+		for (ApplicationModule module : moduleGraphs.keySet()) {
+			ModuleGraph<ExecutionNode> graph = moduleGraphs.get(module);
+			graph.analyzeGraph(graph.module.isAnonymous);
+			processBuilder.addModule(graph.summarize(graph.module.isAnonymous));
 		}
 		
 		return processBuilder.build();

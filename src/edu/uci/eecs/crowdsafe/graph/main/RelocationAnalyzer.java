@@ -12,8 +12,8 @@ import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
 import edu.uci.eecs.crowdsafe.graph.data.ModuleRelocations;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModuleSet;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModuleSet;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
@@ -22,14 +22,14 @@ import edu.uci.eecs.crowdsafe.graph.data.graph.Node;
 import edu.uci.eecs.crowdsafe.graph.data.graph.NodeHashMap;
 import edu.uci.eecs.crowdsafe.graph.data.graph.NodeList;
 import edu.uci.eecs.crowdsafe.graph.data.graph.OrdinalEdgeList;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleBoundaryNode;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.loader.ModuleGraphLoadSession;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterMetadataExecution;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterMetadataSequence;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterUIB;
-import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDataSource;
-import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDirectory;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleBoundaryNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.loader.ModuleGraphLoadSession;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.ModuleMetadataExecution;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.ModuleMetadataSequence;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.ModuleUIB;
+import edu.uci.eecs.crowdsafe.graph.io.modular.ModularTraceDataSource;
+import edu.uci.eecs.crowdsafe.graph.io.modular.ModularTraceDirectory;
 import edu.uci.eecs.crowdsafe.graph.util.CrowdSafeTraceUtil;
 
 public class RelocationAnalyzer {
@@ -103,7 +103,7 @@ public class RelocationAnalyzer {
 	private final ArgumentStack args;
 	private final CommonMergeOptions options;
 
-	private ClusterTraceDataSource dataSource;
+	private ModularTraceDataSource dataSource;
 	private ModuleGraphLoadSession loadSession;
 
 	private EdgeCounter edgeCounter = new EdgeCounter();
@@ -153,11 +153,11 @@ public class RelocationAnalyzer {
 			if (!relocationDirectory.exists())
 				throw new IllegalArgumentException("No such directory '" + relocationDirectory.getName() + "'");
 
-			dataSource = new ClusterTraceDirectory(directory).loadExistingFiles();
+			dataSource = new ModularTraceDirectory(directory).loadExistingFiles();
 			loadSession = new ModuleGraphLoadSession(dataSource);
 
 			for (ApplicationModule cluster : dataSource.getReprsentedModules()) {
-				ModuleGraph<?> graph = loadSession.loadClusterGraph(cluster);
+				ModuleGraph<?> graph = loadSession.loadModuleGraph(cluster);
 
 				edgeCounter.countEdges(graph.getGraphData().nodesByHash);
 
@@ -175,9 +175,9 @@ public class RelocationAnalyzer {
 			Map<ApplicationModule, Boolean> suspiciousExitMap = new HashMap<ApplicationModule, Boolean>();
 			for (ModuleGraph<ModuleNode<?>> graph : graphs.values()) {
 				suspiciousExitMap.put(graph.module, false);
-				ClusterMetadataSequence sequence = graph.metadata.sequences.values().iterator().next();
-				for (ClusterMetadataExecution execution : sequence.executions) {
-					for (ClusterUIB uib : execution.uibs) {
+				ModuleMetadataSequence sequence = graph.metadata.sequences.values().iterator().next();
+				for (ModuleMetadataExecution execution : sequence.executions) {
+					for (ModuleUIB uib : execution.uibs) {
 						if (!uib.isAdmitted && uib.edge.getFromNode().getType() != MetaNodeType.RETURN
 								&& uib.edge.getToNode().getType() == MetaNodeType.MODULE_EXIT) {
 							suspiciousExitMap.put(graph.module, true);
@@ -224,27 +224,27 @@ public class RelocationAnalyzer {
 				Log.log("Checked " + urCount + " unexpected returns for module " + graph.module.filename);
 			}
 
-			int whiteBoxCycleCount = 0, checkedWhiteBoxEntries = 0, checkedWhiteBoxNodes = 0;
+			int standaloneCycleCount = 0, checkedStandaloneEntries = 0, checkedStandaloneNodes = 0;
 			ModuleGraph<ModuleNode<?>> anonymousGraph = loadSession
-					.loadClusterGraph(ApplicationModule.ANONYMOUS_MODULE); // graphs.get(ApplicationModule.ANONYMOUS_UNIT_NAME);
+					.loadModuleGraph(ApplicationModule.ANONYMOUS_MODULE); // graphs.get(ApplicationModule.ANONYMOUS_UNIT_NAME);
 			if (anonymousGraph != null) {
 				Set<ModuleNode<?>> visitedNodes = new HashSet<ModuleNode<?>>();
 				LinkedList<ModuleNode<?>> queue = new LinkedList<ModuleNode<?>>();
 				for (ModuleNode<?> entry : anonymousGraph.getEntryPoints()) {
-					checkedWhiteBoxEntries++;
+					checkedStandaloneEntries++;
 					OrdinalEdgeList<ModuleNode<?>> outgoing = entry.getOutgoingEdges();
 					try {
 						for (Edge<ModuleNode<?>> entryEdge : outgoing) {
-							if (entryEdge.getToNode().isBlackBoxSingleton())
+							if (entryEdge.getToNode().isJITSingleton())
 								continue;
 							visitedNodes.clear();
 							queue.clear();
-							checkedWhiteBoxNodes++;
+							checkedStandaloneNodes++;
 							queue.addFirst(entryEdge.getToNode());
 							while (!queue.isEmpty()) {
 								ModuleNode<?> next = queue.removeLast();
 								if (visitedNodes.contains(next)) {
-									whiteBoxCycleCount++;
+									standaloneCycleCount++;
 									break;
 								}
 								visitedNodes.add(next);
@@ -252,7 +252,7 @@ public class RelocationAnalyzer {
 								try {
 									for (Edge<ModuleNode<?>> traversalEdge : traversal) {
 										if (traversalEdge.getToNode().getType() != MetaNodeType.MODULE_EXIT) {
-											checkedWhiteBoxNodes++;
+											checkedStandaloneNodes++;
 											queue.addFirst(traversalEdge.getToNode());
 										}
 									}
@@ -267,8 +267,8 @@ public class RelocationAnalyzer {
 				}
 			}
 
-			Log.log("White boxes having cycles: " + whiteBoxCycleCount + " (checked " + checkedWhiteBoxEntries
-					+ " entries and " + checkedWhiteBoxNodes + " nodes)");
+			Log.log("White boxes having cycles: " + standaloneCycleCount + " (checked " + checkedStandaloneEntries
+					+ " entries and " + checkedStandaloneNodes + " nodes)");
 
 			Log.log("----");
 
@@ -291,7 +291,7 @@ public class RelocationAnalyzer {
 					Log.log("Found " + relocations.size() + " relocatable targets for module " + moduleName);
 				}
 
-				ClusterMetadataSequence sequence = graph.metadata.sequences.values().iterator().next();
+				ModuleMetadataSequence sequence = graph.metadata.sequences.values().iterator().next();
 				Log.log("Graph " + graph.name + " has " + sequence.executions.size() + " metadata executions");
 
 				singleton = sequence.executions.size() == 1;
@@ -312,9 +312,9 @@ public class RelocationAnalyzer {
 				int suibSkipped = 0;
 				int suspiciousInExecution;
 				boolean lastHalf = false;
-				for (ClusterMetadataExecution execution : sequence.executions) {
+				for (ModuleMetadataExecution execution : sequence.executions) {
 					if (relocations == null) {
-						for (ClusterUIB uib : execution.uibs) {
+						for (ModuleUIB uib : execution.uibs) {
 							if (uib.edge == null) {
 								System.err.println("Error: edge missing from uib!");
 								continue;
@@ -332,7 +332,7 @@ public class RelocationAnalyzer {
 						halfOriginallySuspicious += originallySuspicious;
 						halfClearedSuspicion += clearedSuspicion;
 					}
-					for (ClusterUIB uib : execution.uibs) {
+					for (ModuleUIB uib : execution.uibs) {
 						isSuspicious = false;
 						try {
 							if (uib.edge == null) {

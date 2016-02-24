@@ -1,6 +1,6 @@
 package edu.uci.eecs.crowdsafe.graph.data.graph;
 
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
 
 public interface NodeIdentifier {
 

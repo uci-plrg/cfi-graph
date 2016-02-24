@@ -16,7 +16,7 @@ import java.util.Random;
 import java.util.TreeMap;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
@@ -24,11 +24,11 @@ import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Node;
 import edu.uci.eecs.crowdsafe.graph.data.graph.NodeList;
 import edu.uci.eecs.crowdsafe.graph.data.graph.OrdinalEdgeList;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleBasicBlock;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.loader.ModuleGraphLoadSession;
-import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDataSource;
-import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDirectory;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleBasicBlock;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.loader.ModuleGraphLoadSession;
+import edu.uci.eecs.crowdsafe.graph.io.modular.ModularTraceDataSource;
+import edu.uci.eecs.crowdsafe.graph.io.modular.ModularTraceDirectory;
 
 public class MonitorDatasetGenerator {
 
@@ -109,7 +109,7 @@ public class MonitorDatasetGenerator {
 
 	private final File clusterDataDirectory;
 
-	private final ClusterTraceDataSource dataSource;
+	private final ModularTraceDataSource dataSource;
 	private final ModuleGraphLoadSession loadSession;
 
 	private final Map<ApplicationModule, CatalogPointers> catalogPointers = new LinkedHashMap<ApplicationModule, CatalogPointers>();
@@ -132,7 +132,7 @@ public class MonitorDatasetGenerator {
 	public MonitorDatasetGenerator(File clusterDataDirectory, File outputFile, File alarmConfigFile) throws IOException {
 		this.clusterDataDirectory = clusterDataDirectory;
 
-		dataSource = new ClusterTraceDirectory(clusterDataDirectory).loadExistingFiles();
+		dataSource = new ModularTraceDirectory(clusterDataDirectory).loadExistingFiles();
 		loadSession = new ModuleGraphLoadSession(dataSource);
 
 		OrderByModuleName nameOrder = new OrderByModuleName();
@@ -150,7 +150,7 @@ public class MonitorDatasetGenerator {
 		Collections.sort(sortedImageModules, nameOrder);
 		imageIndexSize = sortedImageModules.size() * 8;
 
-		ModuleGraph<ModuleNode<?>> anonymousGraph = loadSession.loadClusterGraph(ApplicationModule.ANONYMOUS_MODULE);
+		ModuleGraph<ModuleNode<?>> anonymousGraph = loadSession.loadModuleGraph(ApplicationModule.ANONYMOUS_MODULE);
 		if (anonymousGraph == null) {
 			anonymousNodesBySortedHash = null;
 		} else {
@@ -229,7 +229,7 @@ public class MonitorDatasetGenerator {
 		for (ApplicationModule module : sortedImageModules) {
 			nodeSorter.clear();
 
-			ModuleGraph<?> graph = loadSession.loadClusterGraph(module);
+			ModuleGraph<?> graph = loadSession.loadModuleGraph(module);
 			for (Node<?> node : graph.getAllNodes()) {
 				if ((node.getType() == MetaNodeType.NORMAL) || (node.getType() == MetaNodeType.RETURN)
 						|| (node.getType() == MetaNodeType.SINGLETON))

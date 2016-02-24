@@ -6,14 +6,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.writer.ModuleDataWriter;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.writer.ModuleDataWriter;
 
 public class RawModuleData implements ModuleDataWriter.ModularData<IndexedModuleNode> {
 
 	private final ApplicationModule module;
-	private final int id;
 
 	private final Map<ModuleNode.Key, IndexedModuleNode> nodesByKey = new HashMap<ModuleNode.Key, IndexedModuleNode>();
 	private final Map<Long, IndexedModuleNode> entryPointHashes = new HashMap<Long, IndexedModuleNode>();
@@ -22,9 +21,8 @@ public class RawModuleData implements ModuleDataWriter.ModularData<IndexedModule
 	private final List<IndexedModuleNode> nodeList = new ArrayList<IndexedModuleNode>();
 	private final Map<IndexedModuleNode, Integer> nodeIndexMap = new HashMap<IndexedModuleNode, Integer>();
 
-	RawModuleData(ApplicationModule module, int id) {
+	RawModuleData(ApplicationModule module) {
 		this.module = module;
-		this.id = id;
 	}
 
 	IndexedModuleNode addNode(ModuleNode<?> node) {
@@ -71,16 +69,6 @@ public class RawModuleData implements ModuleDataWriter.ModularData<IndexedModule
 
 	IndexedModuleNode getNode(ModuleNode.Key key) {
 		return nodesByKey.get(key);
-	}
-
-	@Override
-	public int getModuleIndex(ApplicationModule module) {
-		return id;
-	}
-
-	@Override
-	public Iterable<ApplicationModule> getSortedModuleList() {
-		return Collections.singletonList(module);
 	}
 
 	@Override

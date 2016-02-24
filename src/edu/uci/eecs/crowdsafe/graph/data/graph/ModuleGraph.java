@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,15 +13,14 @@ import java.util.Queue;
 import java.util.Set;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
-import edu.uci.eecs.crowdsafe.common.util.CrowdSafeCollections;
 import edu.uci.eecs.crowdsafe.common.util.CrowdSafeDebug;
 import edu.uci.eecs.crowdsafe.common.util.MutableInteger;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterMetadata;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterMetadataExecution;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterSGE;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.ClusterUIB;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.metadata.EvaluationType;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.EvaluationType;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.ModuleMetadata;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.ModuleMetadataExecution;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.ModuleSGE;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.ModuleUIB;
 import edu.uci.eecs.crowdsafe.graph.data.results.Graph;
 import edu.uci.eecs.crowdsafe.graph.data.results.NodeResultsFactory;
 import edu.uci.eecs.crowdsafe.graph.util.ModuleEdgeCounter;
@@ -36,7 +34,7 @@ public class ModuleGraph<EdgeEndpointType extends Node<EdgeEndpointType>> {
 	private final Map<Long, EdgeEndpointType> entryNodes = new HashMap<Long, EdgeEndpointType>();
 	private final Map<Long, EdgeEndpointType> exitNodes = new HashMap<Long, EdgeEndpointType>();
 
-	public final ClusterMetadata metadata = new ClusterMetadata();
+	public final ModuleMetadata metadata = new ModuleMetadata();
 
 	protected final GraphData<EdgeEndpointType> graphData;
 
@@ -47,9 +45,9 @@ public class ModuleGraph<EdgeEndpointType extends Node<EdgeEndpointType>> {
 
 	private boolean analyzed = false;
 
-	public ModuleGraph(String name, ApplicationModule cluster) {
+	public ModuleGraph(String name, ApplicationModule module) {
 		this.name = name;
-		this.module = cluster;
+		this.module = module;
 		this.graphData = new GraphData<EdgeEndpointType>();
 	}
 
@@ -73,7 +71,7 @@ public class ModuleGraph<EdgeEndpointType extends Node<EdgeEndpointType>> {
 		return entryNodes.get(hash);
 	}
 
-	public void addClusterEntryNode(EdgeEndpointType entryNode) {
+	public void addModuleEntryNode(EdgeEndpointType entryNode) {
 		if (entryNodes.containsKey(entryNode.getHash()))
 			return;
 
@@ -92,7 +90,7 @@ public class ModuleGraph<EdgeEndpointType extends Node<EdgeEndpointType>> {
 		return exitNodes.get(hash);
 	}
 
-	public void addClusterExitNode(EdgeEndpointType exitNode) {
+	public void addModuleExitNode(EdgeEndpointType exitNode) {
 		if (exitNodes.containsKey(exitNode.getHash()))
 			return;
 
@@ -130,10 +128,10 @@ public class ModuleGraph<EdgeEndpointType extends Node<EdgeEndpointType>> {
 	public void addNode(EdgeEndpointType node) {
 		switch (node.getType()) {
 			case MODULE_ENTRY:
-				addClusterEntryNode(node);
+				addModuleEntryNode(node);
 				break;
 			case MODULE_EXIT:
-				addClusterExitNode(node);
+				addModuleExitNode(node);
 				break;
 			default:
 				executableNodeCount++;
@@ -196,7 +194,7 @@ public class ModuleGraph<EdgeEndpointType extends Node<EdgeEndpointType>> {
 						bfsQueue.add(neighbor);
 						visitedNodes.add(neighbor);
 					}
-					if (edge.isClusterExit())
+					if (edge.isModuleExit())
 						edgeCounter.tallyInterEdge(edge.getEdgeType());
 					else
 						edgeCounter.tallyIntraEdge(edge.getEdgeType());
@@ -208,7 +206,7 @@ public class ModuleGraph<EdgeEndpointType extends Node<EdgeEndpointType>> {
 			edgeList = node.getIncomingEdges();
 			try {
 				for (Edge<EdgeEndpointType> edge : edgeList) {
-					if (edge.isClusterEntry()) {
+					if (edge.isModuleEntry()) {
 						edgeCounter.tallyInterEdge(edge.getEdgeType());
 					}
 				}
@@ -273,7 +271,7 @@ public class ModuleGraph<EdgeEndpointType extends Node<EdgeEndpointType>> {
 			return;
 		}
 
-		Log.log("\nGraph traversal for cluster %s (0x%x)", module, hashCode());
+		Log.log("\nGraph traversal for module %s (0x%x)", module, hashCode());
 
 		Set<EdgeEndpointType> visitedNodes = new HashSet<EdgeEndpointType>();
 		Queue<EdgeEndpointType> bfsQueue = new LinkedList<EdgeEndpointType>();
@@ -354,7 +352,7 @@ public class ModuleGraph<EdgeEndpointType extends Node<EdgeEndpointType>> {
 			edgeList = node.getIncomingEdges();
 			try {
 				for (Edge<EdgeEndpointType> edge : edgeList) {
-					if (edge.isClusterEntry())
+					if (edge.isModuleEntry())
 						out.println(String.format("Node%d->Node%d [ label=\"%s%d\" ];",
 								nodeIndexMap.get(edge.getFromNode()), nodeIndexMap.get(edge.getToNode()),
 								edge.getEdgeType().code, edge.getOrdinal()));
@@ -372,40 +370,40 @@ public class ModuleGraph<EdgeEndpointType extends Node<EdgeEndpointType>> {
 
 	public void logUnknownSuspiciousUIB() {
 		if (metadata.isSingletonExecution()) {
-			for (ClusterUIB uib : metadata.getSingletonExecution().uibs) {
+			for (ModuleUIB uib : metadata.getSingletonExecution().uibs) {
 				if (!uib.isAdmitted)
 					Log.log("<UIB: U->U %dI %dT of %s", uib.instanceCount, uib.traversalCount, uib.edge);
 			}
 		}
 	}
 
-	public Graph.Cluster summarize(boolean reportUnreachableSubgraphs) {
+	public Graph.Module summarize(boolean reportUnreachableSubgraphs) {
 		if (!analyzed)
 			throw new IllegalStateException("Cannot summarize a graph that has not been analyzed!");
 
-		Graph.Cluster.Builder clusterBuilder = Graph.Cluster.newBuilder();
 		Graph.Module.Builder moduleBuilder = Graph.Module.newBuilder();
+		Graph.ModuleVersion.Builder moduleVersionBuilder = Graph.ModuleVersion.newBuilder();
 		Graph.ModuleInstance.Builder moduleInstanceBuilder = Graph.ModuleInstance.newBuilder();
 		Graph.UnreachableNode.Builder unreachableBuilder = Graph.UnreachableNode.newBuilder();
 		Graph.Node.Builder nodeBuilder = Graph.Node.newBuilder();
 		Graph.Edge.Builder edgeBuilder = Graph.Edge.newBuilder();
 		Graph.EdgeTypeCount.Builder edgeTypeCountBuilder = Graph.EdgeTypeCount.newBuilder();
-		NodeResultsFactory nodeFactory = new NodeResultsFactory(moduleBuilder, nodeBuilder);
+		NodeResultsFactory nodeFactory = new NodeResultsFactory(moduleVersionBuilder, nodeBuilder);
 
 		Graph.ModuleMetadata.Builder metadataBuilder = Graph.ModuleMetadata.newBuilder();
 		Graph.UIBObservation.Builder uibBuilder = Graph.UIBObservation.newBuilder();
 		Graph.SuspiciousGencodeEntry.Builder sgeBuilder = Graph.SuspiciousGencodeEntry.newBuilder();
 
-		clusterBuilder.setDistributionName(module.name);
-		clusterBuilder.setNodeCount(getNodeCount());
-		clusterBuilder.setExecutableNodeCount(getExecutableNodeCount());
-		clusterBuilder.setEntryPointCount(getEntryHashes().size());
+		moduleBuilder.setDistributionName(module.name);
+		moduleBuilder.setNodeCount(getNodeCount());
+		moduleBuilder.setExecutableNodeCount(getExecutableNodeCount());
+		moduleBuilder.setEntryPointCount(getEntryHashes().size());
 
-		moduleBuilder.clear().setName(module.filename);
-		moduleBuilder.setVersion(module.version);
-		moduleInstanceBuilder.setModule(moduleBuilder.build());
+		moduleVersionBuilder.clear().setName(module.filename);
+		moduleVersionBuilder.setVersion(module.version);
+		moduleInstanceBuilder.setVersion(moduleVersionBuilder.build());
 		moduleInstanceBuilder.setNodeCount(executableNodeCount);
-		clusterBuilder.addModule(moduleInstanceBuilder.build());
+		moduleBuilder.addInstance(moduleInstanceBuilder.build());
 
 		if (reportUnreachableSubgraphs) {
 			Set<EdgeEndpointType> unreachableNodes = getUnreachableNodes();
@@ -421,9 +419,9 @@ public class ModuleGraph<EdgeEndpointType extends Node<EdgeEndpointType>> {
 								if (unreachableNodes.contains(incoming.getFromNode())) {
 									unreachableBuilder.setIsEntryPoint(false);
 								} else {
-									moduleBuilder.setName(incoming.getFromNode().getModule().filename);
-									moduleBuilder.setVersion(incoming.getFromNode().getModule().version);
-									nodeBuilder.setModule(moduleBuilder.build());
+									moduleVersionBuilder.setName(incoming.getFromNode().getModule().filename);
+									moduleVersionBuilder.setVersion(incoming.getFromNode().getModule().version);
+									nodeBuilder.setVersion(moduleVersionBuilder.build());
 									edgeBuilder.clear().setFromNode(nodeBuilder.build());
 									edgeBuilder.setToNode(unreachableBuilder.getNode());
 									edgeBuilder.setType(incoming.getEdgeType().mapToResultType());
@@ -434,7 +432,7 @@ public class ModuleGraph<EdgeEndpointType extends Node<EdgeEndpointType>> {
 					} finally {
 						edgeList.release();
 					}
-					clusterBuilder.addUnreachable(unreachableBuilder.build());
+					moduleBuilder.addUnreachable(unreachableBuilder.build());
 				}
 			}
 		}
@@ -442,12 +440,12 @@ public class ModuleGraph<EdgeEndpointType extends Node<EdgeEndpointType>> {
 		for (EdgeType type : EdgeType.values()) {
 			edgeTypeCountBuilder.clear().setType(type.mapToResultType());
 			edgeTypeCountBuilder.setCount(edgeCounter.getInterCount(type));
-			clusterBuilder.addInterModuleEdgeCount(edgeTypeCountBuilder.build());
+			moduleBuilder.addInterModuleEdgeCount(edgeTypeCountBuilder.build());
 		}
 		for (EdgeType type : EdgeType.values()) {
 			edgeTypeCountBuilder.clear().setType(type.mapToResultType());
 			edgeTypeCountBuilder.setCount(edgeCounter.getIntraCount(type));
-			clusterBuilder.addIntraModuleEdgeCount(edgeTypeCountBuilder.build());
+			moduleBuilder.addIntraModuleEdgeCount(edgeTypeCountBuilder.build());
 		}
 
 		Map<EvaluationType, MutableInteger> totalInstanceCounts = new EnumMap<EvaluationType, MutableInteger>(
@@ -478,7 +476,7 @@ public class ModuleGraph<EdgeEndpointType extends Node<EdgeEndpointType>> {
 			metadataBuilder.setExecutionIdLow(0L);
 			metadataBuilder.setExecutionIndex(-1);
 		} else {
-			ClusterMetadataExecution execution = metadata.getRootSequence().getHeadExecution();
+			ModuleMetadataExecution execution = metadata.getRootSequence().getHeadExecution();
 			metadataBuilder.setSequenceIdHigh(metadata.getRootSequence().id.getMostSignificantBits());
 			metadataBuilder.setSequenceIdLow(metadata.getRootSequence().id.getLeastSignificantBits());
 			metadataBuilder.setExecutionIdHigh(execution.id.getMostSignificantBits());
@@ -490,8 +488,8 @@ public class ModuleGraph<EdgeEndpointType extends Node<EdgeEndpointType>> {
 			}
 			metadataBuilder.setExecutionIndex(metadata.getRootSequence().executions.size());
 
-			for (ClusterUIB uib : execution.uibs) {
-				if (uib.edge.isClusterEntry())
+			for (ModuleUIB uib : execution.uibs) {
+				if (uib.edge.isModuleEntry())
 					continue;
 
 				totalInstanceCounts.get(EvaluationType.TOTAL).add(uib.instanceCount);
@@ -527,7 +525,7 @@ public class ModuleGraph<EdgeEndpointType extends Node<EdgeEndpointType>> {
 				}
 			}
 
-			for (ClusterSGE sge : execution.sges) {
+			for (ModuleSGE sge : execution.sges) {
 				sgeBuilder.setUibCount(sge.uibCount);
 				sgeBuilder.setSuibCount(sge.suibCount);
 				metadataBuilder.addGencodeEntries(sgeBuilder.build());
@@ -555,8 +553,8 @@ public class ModuleGraph<EdgeEndpointType extends Node<EdgeEndpointType>> {
 			uibBuilder.clear();
 		}
 
-		clusterBuilder.setMetadata(metadataBuilder.build());
-		return clusterBuilder.build();
+		moduleBuilder.setMetadata(metadataBuilder.build());
+		return moduleBuilder.build();
 	}
 
 	@Override

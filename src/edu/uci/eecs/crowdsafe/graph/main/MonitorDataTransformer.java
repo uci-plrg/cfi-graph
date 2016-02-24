@@ -22,8 +22,8 @@ public class MonitorDataTransformer {
 	private MonitorDataTransformer(ArgumentStack args) {
 		this.args = args;
 		this.options = new CommonMergeOptions(args, CommonMergeOptions.crowdSafeCommonDir,
-				CommonMergeOptions.restrictedClusterOption, CommonMergeOptions.unitClusterOption,
-				CommonMergeOptions.excludeClusterOption, verboseOption, logOption, outputOption, alarmConfigOption);
+				CommonMergeOptions.restrictedModuleOption, CommonMergeOptions.unitModuleOption,
+				CommonMergeOptions.excludeModuleOption, verboseOption, logOption, outputOption, alarmConfigOption);
 	}
 
 	private void run() {

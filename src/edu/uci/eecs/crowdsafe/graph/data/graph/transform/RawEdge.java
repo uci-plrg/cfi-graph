@@ -4,7 +4,7 @@ import java.util.Comparator;
 
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.writer.ModuleDataWriter;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.writer.ModuleDataWriter;
 
 public class RawEdge implements ModuleDataWriter.Edge<IndexedModuleNode> {
 
@@ -54,12 +54,12 @@ public class RawEdge implements ModuleDataWriter.Edge<IndexedModuleNode> {
 	}
 	
 	@Override
-	public boolean isClusterEntry() {
+	public boolean isModuleEntry() {
 		return fromNode.module != toNode.module; // EDGE: verify
 	}
 	
 	@Override
-	public boolean isClusterExit() {
+	public boolean isModuleExit() {
 		return fromNode.module != toNode.module;
 	}
 

@@ -1,6 +1,6 @@
 package edu.uci.eecs.crowdsafe.graph.data.graph;
 
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.writer.ModuleDataWriter;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.writer.ModuleDataWriter;
 
 public class Edge<EndpointType extends Node<?>> implements ModuleDataWriter.Edge<EndpointType> {
 	private final EndpointType toNode;
@@ -48,12 +48,12 @@ public class Edge<EndpointType extends Node<?>> implements ModuleDataWriter.Edge
 	}
 	
 	@Override
-	public boolean isClusterEntry() {
+	public boolean isModuleEntry() {
 		return (fromNode.getType() == MetaNodeType.MODULE_ENTRY);
 	}
 	
 	@Override
-	public boolean isClusterExit() {
+	public boolean isModuleExit() {
 		return (toNode.getType() == MetaNodeType.MODULE_EXIT);
 	}
 

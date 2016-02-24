@@ -6,7 +6,7 @@ import java.util.Map;
 
 import edu.uci.eecs.crowdsafe.common.exception.InvalidGraphException;
 import edu.uci.eecs.crowdsafe.common.exception.InvalidTagException;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.GraphLoadEventListener;
@@ -72,10 +72,10 @@ public class ProcessGraphLoadSession {
 				throw new InvalidGraphException(e);
 			}
 
-			graph.trimEmptyClusters();
+			graph.trimEmptyModules();
 
 			// Some other initialization and sanity checks
-			for (ApplicationModule cluster : graph.getRepresentedClusters()) {
+			for (ApplicationModule cluster : graph.getRepresentedModules()) {
 				ModuleGraph<ExecutionNode> clusterGraph = graph.getModuleGraph(cluster);
 				// clusterGraph.getGraphData().validate();
 				// clusterGraph.analyzeGraph();
@@ -130,7 +130,7 @@ public class ProcessGraphLoadSession {
 		private void createProcessEntryPoint(ExecutionNode node) {
 			ExecutionNode entryNode = new ExecutionNode(node.getModule(), MetaNodeType.MODULE_ENTRY, 0L, 0, 1L,
 					node.getTimestamp());
-			graph.getModuleGraph(node.getModule()).addClusterEntryNode(entryNode);
+			graph.getModuleGraph(node.getModule()).addModuleEntryNode(entryNode);
 			Edge<ExecutionNode> clusterEntryEdge = new Edge<ExecutionNode>(entryNode, node, EdgeType.DIRECT, 0);
 			entryNode.addOutgoingEdge(clusterEntryEdge);
 			node.addIncomingEdge(clusterEntryEdge);

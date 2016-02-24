@@ -16,8 +16,8 @@ import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap.OptionMode;
 import edu.uci.eecs.crowdsafe.graph.data.ModuleRelocations;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModuleSet;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModuleSet;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
@@ -25,10 +25,10 @@ import edu.uci.eecs.crowdsafe.graph.data.graph.Node;
 import edu.uci.eecs.crowdsafe.graph.data.graph.NodeHashMap;
 import edu.uci.eecs.crowdsafe.graph.data.graph.NodeList;
 import edu.uci.eecs.crowdsafe.graph.data.graph.OrdinalEdgeList;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.loader.ModuleGraphLoadSession;
-import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDataSource;
-import edu.uci.eecs.crowdsafe.graph.io.cluster.ClusterTraceDirectory;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.loader.ModuleGraphLoadSession;
+import edu.uci.eecs.crowdsafe.graph.io.modular.ModularTraceDataSource;
+import edu.uci.eecs.crowdsafe.graph.io.modular.ModularTraceDirectory;
 
 public class GraphHistoryAnalyzer {
 
@@ -196,7 +196,7 @@ public class GraphHistoryAnalyzer {
 	private static final OptionArgumentMap.StringOption relocationOption = OptionArgumentMap.createStringOption('r',
 			OptionMode.REQUIRED);
 
-	private ClusterTraceDataSource dataSource;
+	private ModularTraceDataSource dataSource;
 	private ModuleGraphLoadSession loadSession;
 
 	private EdgeAnalyzer edgeAnalyzer;
@@ -216,7 +216,7 @@ public class GraphHistoryAnalyzer {
 	private ModuleGraph<?> loadGraph(ApplicationModule cluster) throws IOException {
 		ModuleGraph<?> graph;
 		Log.setSilent(true);
-		graph = loadSession.loadClusterGraph(cluster);
+		graph = loadSession.loadModuleGraph(cluster);
 		Log.setSilent(false);
 		return graph;
 	}
@@ -259,7 +259,7 @@ public class GraphHistoryAnalyzer {
 				return;
 
 			for (File runDirectory : runDirectories) {
-				dataSource = new ClusterTraceDirectory(runDirectory).loadExistingFiles();
+				dataSource = new ModularTraceDirectory(runDirectory).loadExistingFiles();
 				loadSession = new ModuleGraphLoadSession(dataSource);
 
 				edgeAnalyzer.setupAnonymousHashes(loadGraph(ApplicationModule.ANONYMOUS_MODULE));

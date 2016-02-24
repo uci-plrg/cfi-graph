@@ -1,6 +1,6 @@
 package edu.uci.eecs.crowdsafe.graph.data.graph.execution;
 
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
 
 // TODO: check the usage of ModuleInstance hashcode/equals: maybe use alternate key for equivocating all instances of the same software unit?
 public class ModuleInstance extends ApplicationModule {

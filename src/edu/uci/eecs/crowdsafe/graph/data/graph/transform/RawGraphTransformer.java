@@ -21,18 +21,18 @@ import edu.uci.eecs.crowdsafe.common.io.LittleEndianOutputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModule;
-import edu.uci.eecs.crowdsafe.graph.data.dist.ApplicationModuleSet;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModuleSet;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleBasicBlock;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleBoundaryNode;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.ModuleNode;
-import edu.uci.eecs.crowdsafe.graph.data.graph.cluster.writer.ModuleDataWriter;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ModuleInstance;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ProcessExecutionGraph;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ProcessExecutionModuleSet;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.loader.ProcessModuleLoader;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleBasicBlock;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleBoundaryNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.writer.ModuleDataWriter;
 import edu.uci.eecs.crowdsafe.graph.io.execution.ExecutionTraceDataSource;
 import edu.uci.eecs.crowdsafe.graph.io.execution.ExecutionTraceDirectory;
 import edu.uci.eecs.crowdsafe.graph.io.execution.ExecutionTraceStreamType;
@@ -125,7 +125,7 @@ public class RawGraphTransformer {
 	private final Map<RawTag, Integer> fakeAnonymousModuleTags = new HashMap<RawTag, Integer>();
 	private int fakeAnonymousTagIndex = ModuleNode.FAKE_ANONYMOUS_TAG_START;
 	private final Map<Long, IndexedModuleNode> syscallSingletons = new HashMap<Long, IndexedModuleNode>();
-	private final Map<ApplicationModule, ModuleNode<?>> blackBoxSingletons = new HashMap<ApplicationModule, ModuleNode<?>>();
+	private final Map<ApplicationModule, ModuleNode<?>> jitSingletons = new HashMap<ApplicationModule, ModuleNode<?>>();
 
 	private int mainModuleStartAddress;
 	private ApplicationModule mainModule;
@@ -211,7 +211,7 @@ public class RawGraphTransformer {
 				fakeAnonymousModuleTags.clear();
 				fakeAnonymousTagIndex = ModuleNode.FAKE_ANONYMOUS_TAG_START;
 				syscallSingletons.clear();
-				blackBoxSingletons.clear();
+				jitSingletons.clear();
 			}
 		} catch (Throwable t) {
 			t.printStackTrace();
@@ -339,14 +339,14 @@ public class RawGraphTransformer {
 				if ((absoluteTag == ModuleNode.PROCESS_ENTRY_SINGLETON) || (absoluteTag == ModuleNode.SYSTEM_SINGLETON)
 						|| (absoluteTag == ModuleNode.CHILD_PROCESS_SINGLETON)) {
 					moduleInstance = ModuleInstance.SYSTEM;
-				} else if ((absoluteTag >= ModuleNode.BLACK_BOX_SINGLETON_START)
-						&& (absoluteTag < ModuleNode.BLACK_BOX_SINGLETON_END)) {
+				} else if ((absoluteTag >= ModuleNode.JIT_SINGLETON_START)
+						&& (absoluteTag < ModuleNode.JIT_SINGLETON_END)) {
 					moduleInstance = ModuleInstance.ANONYMOUS;
 				} else {
 					throw new InvalidGraphException("Error: unknown singleton with tag 0x%x!", absoluteTag);
 				}
-			} else if ((absoluteTag >= ModuleNode.BLACK_BOX_SINGLETON_START) // FIXME: temporary hack
-					&& (absoluteTag < ModuleNode.BLACK_BOX_SINGLETON_END)) {
+			} else if ((absoluteTag >= ModuleNode.JIT_SINGLETON_START) // FIXME: temporary hack
+					&& (absoluteTag < ModuleNode.JIT_SINGLETON_END)) {
 				moduleInstance = ModuleInstance.ANONYMOUS;
 			} else {
 				moduleInstance = executionModules.getModule(absoluteTag, entryIndex, streamType);
@@ -359,9 +359,9 @@ public class RawGraphTransformer {
 			ApplicationModule module = ApplicationModuleSet.getInstance().modulesByName.get(moduleInstance.name);
 
 			int relativeTag;
-			ModuleBoundaryNode.HashLabel blackBoxLabel = null;
-			ApplicationModule blackBoxOwner = null;
-			boolean isNewBlackBoxSingleton = false;
+			ModuleBoundaryNode.HashLabel jitLabel = null;
+			ApplicationModule jitOwner = null;
+			boolean isNewJITSingleton = false;
 			if (module.isAnonymous) {
 				if ((absoluteTag == ModuleNode.PROCESS_ENTRY_SINGLETON) || (absoluteTag == ModuleNode.SYSTEM_SINGLETON)
 						|| (absoluteTag == ModuleNode.CHILD_PROCESS_SINGLETON)) {
@@ -398,8 +398,8 @@ public class RawGraphTransformer {
 			// moduleModule = establishModuleData(module).moduleList.establishModule(moduleInstance.unit);
 			node = new ModuleBasicBlock(module, relativeTag, module.isAnonymous ? 0 : tagVersion, nodeEntry.second,
 					nodeType);
-			if (isNewBlackBoxSingleton)
-				blackBoxSingletons.put(blackBoxOwner, node);
+			if (isNewJITSingleton)
+				jitSingletons.put(jitOwner, node);
 			nodeId = nodeData.addNode(node);
 
 			graphWriters.establishModuleWriters(nodesByModule.get(module));
@@ -595,7 +595,7 @@ public class RawGraphTransformer {
 	private RawModuleData establishModuleData(ApplicationModule module) {
 		RawModuleData data = nodesByModule.get(module);
 		if (data == null) {
-			data = new RawModuleData(module, nodesByModule.size());
+			data = new RawModuleData(module);
 			nodesByModule.put(module, data);
 		}
 		return data;
@@ -673,8 +673,8 @@ public class RawGraphTransformer {
 				|| (absoluteTag == ModuleNode.CHILD_PROCESS_SINGLETON)) {
 			moduleInstance = ModuleInstance.SYSTEM;
 			module = ApplicationModule.SYSTEM_MODULE;
-		} else if ((absoluteTag >= ModuleNode.BLACK_BOX_SINGLETON_START)
-				&& (absoluteTag < ModuleNode.BLACK_BOX_SINGLETON_END)) {
+		} else if ((absoluteTag >= ModuleNode.JIT_SINGLETON_START)
+				&& (absoluteTag < ModuleNode.JIT_SINGLETON_END)) {
 			return nodesByRawTag.get(new RawTag(absoluteTag, tagVersion));
 		} else {
 			moduleInstance = executionModules.getModule(absoluteTag, entryIndex, streamType);
