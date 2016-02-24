@@ -21,7 +21,7 @@ import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleBoundaryNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleNode;
 import edu.uci.eecs.crowdsafe.graph.util.EdgeCounter;
 
-public class AnonymousGraphCollection {
+public class ModuleAnonymousGraphs {
 
 	public static class OwnerKey {
 		public final ApplicationModule module;
@@ -70,7 +70,7 @@ public class AnonymousGraphCollection {
 	private int executableNodeCount = 0;
 	private boolean isJIT = false;
 
-	public AnonymousGraphCollection(ApplicationModule owningModule) {
+	public ModuleAnonymousGraphs(ApplicationModule owningModule) {
 		this.owningModule = owningModule;
 	}
 

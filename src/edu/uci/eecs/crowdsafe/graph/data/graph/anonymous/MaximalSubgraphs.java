@@ -154,8 +154,8 @@ public class MaximalSubgraphs {
 	private final Map<ModuleNode<?>, Subgraph> subgraphs = new HashMap<ModuleNode<?>, Subgraph>();
 	private final Set<AnonymousGraph> distinctSubgraphs = new HashSet<AnonymousGraph>();
 
-	private MaximalSubgraphs(ModuleGraph<ModuleNode<?>> graph) {
-		this.originalGraph = graph;
+	private MaximalSubgraphs(ModuleGraph<ModuleNode<?>> originalGraph) {
+		this.originalGraph = originalGraph;
 	}
 
 	private void addEdge(Edge<ModuleNode<?>> edge) {

@@ -11,7 +11,7 @@ import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.GraphLoadEventListener;
 import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
-import edu.uci.eecs.crowdsafe.graph.data.graph.anonymous.AnonymousGraphCollection;
+import edu.uci.eecs.crowdsafe.graph.data.graph.anonymous.ModuleAnonymousGraphs;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ExecutionNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ProcessExecutionModuleSet;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ApplicationGraph;
@@ -70,7 +70,7 @@ public class ModuleGraphLoadSession {
 		return graphLoader.loadGraph();
 	}
 
-	public AnonymousGraphCollection loadAnonymousGraphs(ApplicationModule module, GraphLoadEventListener listener) {
+	public ModuleAnonymousGraphs loadAnonymousGraphs(ApplicationModule module, GraphLoadEventListener listener) {
 		if (!module.isAnonymous)
 			throw new IllegalArgumentException("Cannot load a statically compiled module as a set of anonymous graphs.");
 		

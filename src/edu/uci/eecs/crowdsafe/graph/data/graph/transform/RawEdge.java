@@ -6,7 +6,7 @@ import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.writer.ModuleDataWriter;
 
-public class RawEdge implements ModuleDataWriter.Edge<IndexedModuleNode> {
+public class RawEdge implements ModuleDataWriter.Edge {
 
 	static class EdgeIndexSorter implements Comparator<RawEdge> {
 		static EdgeIndexSorter INSTANCE = new EdgeIndexSorter();

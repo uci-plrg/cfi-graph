@@ -21,6 +21,8 @@ public class ApplicationModule {
 
 	public static final String EMPTY_VERSION = "0-0-0";
 
+	private static final Pattern FILENAME_PATTERN = Pattern.compile("^(.*)-([^\\-]+-[^\\-]+-[^\\-]+)$");
+
 	public static final ApplicationModule SYSTEM_MODULE = new ApplicationModule(SYSTEM_MODULE_NAME, SYSTEM_MODULE_ID,
 			false);
 	public static final ApplicationModule ANONYMOUS_MODULE = new ApplicationModule(ANONYMOUS_MODULE_NAME,
@@ -28,8 +30,6 @@ public class ApplicationModule {
 	public static final ApplicationModule BOUNDARY_MODULE = new ApplicationModule(BOUNDARY_MODULE_NAME,
 			BOUNDARY_MODULE_ID + ApplicationModule.EMPTY_VERSION);
 	public static final ApplicationModule MAIN_PROGRAM = new ApplicationModule(MAIN_MODULE_NAME, MAIN_MODULE_ID);
-
-	private static final Pattern FILENAME_PATTERN = Pattern.compile("^(.*)-([^\\-]+-[^\\-]+-[^\\-]+)$");
 
 	public final String name;
 	public final String id;

@@ -55,6 +55,7 @@ do
     log_option="-l "$log_file
   fi
 
+  echo "transform-graph $log_option $input $output_option"
   transform-graph $log_option $input $output_option
 done
 

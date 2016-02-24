@@ -1,16 +1,16 @@
 package edu.uci.eecs.crowdsafe.graph.data.graph.transform;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.graph.NodeIdentifier;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.writer.ModuleDataWriter;
 
-public class RawModuleData implements ModuleDataWriter.ModularData<IndexedModuleNode> {
+public class RawModuleData implements ModuleDataWriter.ModularData {
 
 	private final ApplicationModule module;
 
@@ -56,12 +56,6 @@ public class RawModuleData implements ModuleDataWriter.ModularData<IndexedModule
 		return rawNode;
 	}
 
-	void replace(IndexedModuleNode original, IndexedModuleNode replacement) {
-		nodesByKey.put(replacement.node.getKey(), replacement);
-		nodeList.set(replacement.index, replacement);
-		nodeIndexMap.put(replacement, replacement.index);
-	}
-
 	@Override
 	public ApplicationModule getModule() {
 		return module;
@@ -72,7 +66,7 @@ public class RawModuleData implements ModuleDataWriter.ModularData<IndexedModule
 	}
 
 	@Override
-	public int getNodeIndex(IndexedModuleNode node) {
+	public int getNodeIndex(NodeIdentifier node) {
 		Integer index = nodeIndexMap.get(node);
 		if (index == null) {
 			return 0;

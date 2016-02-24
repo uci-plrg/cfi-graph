@@ -21,10 +21,13 @@ import edu.uci.eecs.crowdsafe.common.io.LittleEndianOutputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.common.util.ArgumentStack;
 import edu.uci.eecs.crowdsafe.common.util.OptionArgumentMap;
-import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModuleSet;
 import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModuleSet;
+import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
+import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
+import edu.uci.eecs.crowdsafe.graph.data.graph.anonymous.ApplicationAnonymousGraphs;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ModuleInstance;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ProcessExecutionGraph;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ProcessExecutionModuleSet;
@@ -32,7 +35,9 @@ import edu.uci.eecs.crowdsafe.graph.data.graph.execution.loader.ProcessModuleLoa
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleBasicBlock;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleBoundaryNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.writer.AnonymousGraphWriter;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.writer.ModuleDataWriter;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.writer.ModuleGraphWriter;
 import edu.uci.eecs.crowdsafe.graph.io.execution.ExecutionTraceDataSource;
 import edu.uci.eecs.crowdsafe.graph.io.execution.ExecutionTraceDirectory;
 import edu.uci.eecs.crowdsafe.graph.io.execution.ExecutionTraceStreamType;
@@ -112,8 +117,9 @@ public class RawGraphTransformer {
 	private File outputDir = null;
 	private ExecutionTraceDataSource dataSource = null;
 	private ProcessExecutionModuleSet executionModules = null;
-	private ModuleDataWriter.Directory<IndexedModuleNode> graphWriters = null;
+	private ModuleDataWriter.Directory graphWriters = null;
 	private final Map<ApplicationModule, RawModuleData> nodesByModule = new HashMap<ApplicationModule, RawModuleData>();
+	/* using Map<RawEdge,RawEdge> to facilitate lookup */
 	private final Map<ApplicationModule, Map<RawEdge, RawEdge>> edgesByModule = new HashMap<ApplicationModule, Map<RawEdge, RawEdge>>();
 
 	private final Set<ApplicationModule> metadataModules = new HashSet<ApplicationModule>();
@@ -189,8 +195,7 @@ public class RawGraphTransformer {
 						outputDir = new File(outputOption.getValue());
 					}
 					outputDir.mkdirs();
-					graphWriters = new ModuleDataWriter.Directory<IndexedModuleNode>(outputDir,
-							dataSource.getProcessName());
+					graphWriters = new ModuleDataWriter.Directory(outputDir, dataSource.getProcessName());
 					Log.log("Transform %s to %s", runDir.getAbsolutePath(), outputDir.getAbsolutePath());
 					transformGraph();
 				} catch (Throwable t) {
@@ -230,8 +235,9 @@ public class RawGraphTransformer {
 				intraModuleUIBQueue.size(), crossModuleUIBQueue.size(), gencodeEntryQueue.size(),
 				intraModuleSuspiciousSyscallQueue.size(), crossModuleSuspiciousSyscallQueue.size());
 
-		writeNodes();
-		writeEdges();
+		writeGraph();
+		// writeNodes();
+		// writeEdges();
 		writeMetadata();
 		graphWriters.flush();
 	}
@@ -402,10 +408,10 @@ public class RawGraphTransformer {
 				jitSingletons.put(jitOwner, node);
 			nodeId = nodeData.addNode(node);
 
-			graphWriters.establishModuleWriters(nodesByModule.get(module));
-
 			if (module.isAnonymous)
 				nodesByRawTag.put(new RawTag(absoluteTag, tagVersion), nodeId);
+			else
+				graphWriters.establishModuleWriters(nodesByModule.get(module));
 		}
 	}
 
@@ -673,8 +679,7 @@ public class RawGraphTransformer {
 				|| (absoluteTag == ModuleNode.CHILD_PROCESS_SINGLETON)) {
 			moduleInstance = ModuleInstance.SYSTEM;
 			module = ApplicationModule.SYSTEM_MODULE;
-		} else if ((absoluteTag >= ModuleNode.JIT_SINGLETON_START)
-				&& (absoluteTag < ModuleNode.JIT_SINGLETON_END)) {
+		} else if ((absoluteTag >= ModuleNode.JIT_SINGLETON_START) && (absoluteTag < ModuleNode.JIT_SINGLETON_END)) {
 			return nodesByRawTag.get(new RawTag(absoluteTag, tagVersion));
 		} else {
 			moduleInstance = executionModules.getModule(absoluteTag, entryIndex, streamType);
@@ -702,9 +707,61 @@ public class RawGraphTransformer {
 		return node;
 	}
 
+	private void writeGraph() throws IOException {
+		ModuleNode<?> transformedNode, fromNode, toNode;
+		Edge<ModuleNode<?>> transformedEdge;
+		List<ModuleNode<?>> transformedNodes = new ArrayList<ModuleNode<?>>();
+		String name = "Raw graph loaded from " + dataSource.getDirectory().getAbsolutePath();
+
+		for (ApplicationModule module : nodesByModule.keySet()) {
+			ModuleGraph<ModuleNode<?>> graph = new ModuleGraph<ModuleNode<?>>(name, module);
+			transformedNodes.clear();
+
+			for (IndexedModuleNode node : nodesByModule.get(module).getSortedNodeList()) {
+				switch (node.getType()) {
+					case MODULE_ENTRY:
+					case MODULE_EXIT:
+						transformedNode = new ModuleBoundaryNode(node.getHash(), node.getType());
+						break;
+					default:
+						transformedNode = new ModuleBasicBlock(module, node.getRelativeTag(), node.getInstanceId(),
+								node.getHash(), node.getType());
+				}
+				transformedNodes.add(transformedNode);
+				graph.addNode(transformedNode);
+			}
+
+			Map<RawEdge, RawEdge> edgeList = edgesByModule.get(module);
+			Map<Edge<ModuleNode<?>>, RawEdge> transformedEdgeMap = new HashMap<Edge<ModuleNode<?>>, RawEdge>();
+			for (RawEdge edge : edgeList.values()) {
+				fromNode = transformedNodes.get(edge.getFromNode().index);
+				toNode = transformedNodes.get(edge.getToNode().index);
+				transformedEdge = new Edge<ModuleNode<?>>(fromNode, toNode, edge.getEdgeType(), edge.getOrdinal());
+				transformedEdgeMap.put(transformedEdge, edge);
+				fromNode.addOutgoingEdge(transformedEdge);
+				toNode.addIncomingEdge(transformedEdge);
+			}
+
+			if (module == ApplicationModule.ANONYMOUS_MODULE) {
+				ApplicationAnonymousGraphs anonymousGraphs = new ApplicationAnonymousGraphs();
+				anonymousGraphs.inflate(graph);
+				AnonymousGraphWriter anonymousWriter = new AnonymousGraphWriter(anonymousGraphs, graphWriters.dataSink);
+				graphWriters.establishModuleWriters(anonymousWriter);
+				anonymousWriter.writeGraph();
+				// not setting edge indexes b/c there's no edge-specific metadata in the anonymous module
+			} else {
+				ModuleGraphWriter writer = new ModuleGraphWriter(graph, graphWriters.dataSink);
+				Map<Edge<ModuleNode<?>>, Integer> edgeIndexMap = writer.writeGraphBody();
+				for (Map.Entry<Edge<ModuleNode<?>>, Integer> edgeIndex : edgeIndexMap.entrySet()) {
+					transformedEdgeMap.get(edgeIndex.getKey()).setEdgeIndex(edgeIndex.getValue());
+				}
+			}
+		}
+	}
+
 	private void writeNodes() throws IOException {
 		for (ApplicationModule module : nodesByModule.keySet()) {
-			ModuleDataWriter<IndexedModuleNode> writer = graphWriters.getWriter(module);
+			ModuleDataWriter writer = graphWriters.getWriter(module);
 			for (IndexedModuleNode node : nodesByModule.get(module).getSortedNodeList()) {
 				writer.writeNode(node);
 			}
@@ -716,7 +773,7 @@ public class RawGraphTransformer {
 			// List<RawEdge> orderedEdges = new ArrayList<RawEdge>(moduleEdgeList.getValue().values());
 			// Collections.sort(orderedEdges, RawEdge.EdgeIndexSorter.INSTANCE);
 			int edgeIndex = 0;
-			ModuleDataWriter<IndexedModuleNode> writer = graphWriters.getWriter(moduleEdgeList.getKey());
+			ModuleDataWriter writer = graphWriters.getWriter(moduleEdgeList.getKey());
 			for (RawEdge edge : moduleEdgeList.getValue().values()) {
 				edge.setEdgeIndex(edgeIndex++);
 				writer.writeEdge(edge);
@@ -740,7 +797,7 @@ public class RawGraphTransformer {
 				continue;
 			}
 
-			ModuleDataWriter<IndexedModuleNode> writer = graphWriters.getWriter(module);
+			ModuleDataWriter writer = graphWriters.getWriter(module);
 			writer.writeMetadataHeader(false);
 			writer.writeSequenceMetadataHeader(1, true);
 			Collection<RawUnexpectedIndirectBranch> uibsSorted = null;
@@ -763,7 +820,7 @@ public class RawGraphTransformer {
 			}
 		}
 		if (mainModule != null) {
-			ModuleDataWriter<IndexedModuleNode> writer = graphWriters.getWriter(mainModule);
+			ModuleDataWriter writer = graphWriters.getWriter(mainModule);
 			// if (writer == null)
 			// writer = graphWriters.createMetadataWriter(mainModule);
 			writer.writeMetadataHeader(true);

@@ -63,20 +63,18 @@ public class ApplicationModuleSet {
 
 		boolean isDynamic = name.startsWith(ApplicationModule.ANONYMOUS_MODULE_NAME);
 		ApplicationModule module;
-		if (name.equals(ApplicationModule.ANONYMOUS_MODULE.name))
+		if (name.startsWith(ApplicationModule.ANONYMOUS_MODULE.name)) {
 			module = ApplicationModule.ANONYMOUS_MODULE;
-		else
+		} else {
 			module = new ApplicationModule(name, name, isDynamic);
 
-		modulesByName.put(module.name, module);
-		// unitsByAnonymousEntryHash.put(unit.anonymousEntryHash, unit);
-		// unitsByAnonymousExitHash.put(unit.anonymousExitHash, unit);
-		// unitsByAnonymousGencodeHash.put(unit.anonymousGencodeHash, unit);
-		// unitsByInterceptionHash.put(unit.interceptionHash, unit);
-		crossModuleLabels.put(module.anonymousEntryHash.hash, module.anonymousEntryHash);
-		crossModuleLabels.put(module.anonymousExitHash.hash, module.anonymousExitHash);
+			crossModuleLabels.put(module.anonymousEntryHash.hash, module.anonymousEntryHash);
+			crossModuleLabels.put(module.anonymousExitHash.hash, module.anonymousExitHash);
+			crossModuleLabels.put(module.interceptionHash.hash, module.interceptionHash);
+		}
 		crossModuleLabels.put(module.anonymousGencodeHash.hash, module.anonymousGencodeHash);
-		crossModuleLabels.put(module.interceptionHash.hash, module.interceptionHash);
+
+		modulesByName.put(module.name, module);
 
 		return module;
 	}

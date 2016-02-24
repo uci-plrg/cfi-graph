@@ -1,9 +1,7 @@
 package edu.uci.eecs.crowdsafe.graph.data.graph.modular.writer;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -13,8 +11,8 @@ import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.NodeIdentifier;
-import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleBoundaryNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleNode;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.EvaluationType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.ModuleMetadata;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.ModuleMetadataExecution;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.ModuleMetadataSequence;
@@ -22,23 +20,22 @@ import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.ModuleSGE;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.ModuleSSC;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.ModuleUIB;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.ModuleUIBInterval;
-import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.EvaluationType;
 import edu.uci.eecs.crowdsafe.graph.io.modular.ModularTraceDataSink;
 import edu.uci.eecs.crowdsafe.graph.io.modular.ModularTraceDirectory;
 import edu.uci.eecs.crowdsafe.graph.io.modular.ModularTraceStreamType;
 
-public class ModuleDataWriter<NodeType extends NodeIdentifier> {
+public class ModuleDataWriter {
 
-	public interface ModularData<NodeType extends NodeIdentifier> {
+	public interface ModularData {
 		ApplicationModule getModule();
 
-		int getNodeIndex(NodeType node);
+		int getNodeIndex(NodeIdentifier node);
 	}
 
-	public interface Edge<NodeType extends NodeIdentifier> {
-		NodeType getFromNode();
+	public interface Edge {
+		NodeIdentifier getFromNode();
 
-		NodeType getToNode();
+		NodeIdentifier getToNode();
 
 		EdgeType getEdgeType();
 
@@ -49,32 +46,32 @@ public class ModuleDataWriter<NodeType extends NodeIdentifier> {
 		boolean isModuleExit();
 	}
 
-	public static class Directory<NodeType extends NodeIdentifier> {
-		private final ModularTraceDataSink dataSink;
+	public static class Directory {
+		public final ModularTraceDataSink dataSink;
 		private final String filenameFormat;
 
-		private final Map<ApplicationModule, ModuleDataWriter<NodeType>> outputsByCluster = new HashMap<ApplicationModule, ModuleDataWriter<NodeType>>();
+		private final Map<ApplicationModule, ModuleDataWriter> outputsByModule = new HashMap<ApplicationModule, ModuleDataWriter>();
 
 		public Directory(File directory, String processName) {
 			dataSink = new ModularTraceDirectory(directory);
 			filenameFormat = String.format("%s.%%s.%%s.%%s", processName);
 		}
 
-		public void establishModuleWriters(ModularData<NodeType> data) throws IOException {
-			ModuleDataWriter<NodeType> writer = getWriter(data.getModule());
+		public void establishModuleWriters(ModularData data) throws IOException {
+			ModuleDataWriter writer = getWriter(data.getModule());
 			if (writer == null) {
 				dataSink.addModule(data.getModule(), filenameFormat);
-				writer = new ModuleDataWriter<NodeType>(data, dataSink);
-				outputsByCluster.put(data.getModule(), writer);
+				writer = new ModuleDataWriter(data, dataSink);
+				outputsByModule.put(data.getModule(), writer);
 			}
 		}
 
-		public ModuleDataWriter<NodeType> getWriter(ApplicationModule cluster) {
-			return outputsByCluster.get(cluster);
+		public ModuleDataWriter getWriter(ApplicationModule module) {
+			return outputsByModule.get(module);
 		}
 
 		public void flush() throws IOException {
-			for (ModuleDataWriter<NodeType> output : outputsByCluster.values()) {
+			for (ModuleDataWriter output : outputsByModule.values()) {
 				output.flush();
 			}
 		}
@@ -84,9 +81,9 @@ public class ModuleDataWriter<NodeType extends NodeIdentifier> {
 	final LittleEndianOutputStream edgeStream;
 	final LittleEndianOutputStream metaStream;
 
-	private final ModularData<NodeType> data;
+	private final ModularData data;
 
-	ModuleDataWriter(ModularData<NodeType> data, ModularTraceDataSink dataSink) throws IOException {
+	ModuleDataWriter(ModularData data, ModularTraceDataSink dataSink) throws IOException {
 		this.data = data;
 
 		nodeStream = dataSink.getLittleEndianOutputStream(data.getModule(), ModularTraceStreamType.GRAPH_NODE);
@@ -94,7 +91,7 @@ public class ModuleDataWriter<NodeType extends NodeIdentifier> {
 		metaStream = dataSink.getLittleEndianOutputStream(data.getModule(), ModularTraceStreamType.META);
 	}
 
-	public void writeNode(NodeType node) throws IOException {
+	public void writeNode(NodeIdentifier node) throws IOException {
 		long word = 0; // data.getModuleIndex(node.getModule()); // obsolete
 		word |= ((long) node.getRelativeTag() & 0xffffffffL) << 0x10;
 		word |= ((long) node.getInstanceId()) << 0x30;
@@ -103,7 +100,7 @@ public class ModuleDataWriter<NodeType extends NodeIdentifier> {
 		nodeStream.writeLong(node.getHash());
 	}
 
-	public void writeEdge(Edge<NodeType> edge) throws IOException {
+	public void writeEdge(Edge edge) throws IOException {
 		long word = (long) data.getNodeIndex(edge.getFromNode());
 		word |= ((long) data.getNodeIndex(edge.getToNode())) << 0x1c;
 		word |= ((long) edge.getEdgeType().ordinal()) << 0x38;

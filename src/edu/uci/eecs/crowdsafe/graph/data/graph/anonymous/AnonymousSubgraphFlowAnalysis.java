@@ -43,7 +43,7 @@ public class AnonymousSubgraphFlowAnalysis {
 		flowPerEntryNode.clear();
 	}
 
-	void analyzeFlow(AnonymousGraphCollection module) {
+	void analyzeFlow(ModuleAnonymousGraphs module) {
 		int returnOnlyCount = 0;
 		int singletonExitCount = 0;
 		int totalBackEdgeCount = 0;

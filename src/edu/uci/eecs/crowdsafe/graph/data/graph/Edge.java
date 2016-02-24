@@ -2,7 +2,7 @@ package edu.uci.eecs.crowdsafe.graph.data.graph;
 
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.writer.ModuleDataWriter;
 
-public class Edge<EndpointType extends Node<?>> implements ModuleDataWriter.Edge<EndpointType> {
+public class Edge<EndpointType extends Node<?>> implements ModuleDataWriter.Edge {
 	private final EndpointType toNode;
 	private EdgeType edgeType;
 	private int ordinal;
