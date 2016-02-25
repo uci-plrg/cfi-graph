@@ -91,15 +91,7 @@ public class ModularTraceDirectory implements ModularTraceDataSource, ModularTra
 				continue;
 
 			if (file.getName().equals(XHASH_FILENAME)) {
-				BufferedReader reader = new BufferedReader(new FileReader(file));
-				try {
-					for (String line = reader.readLine(); line != null; line = reader.readLine()) {
-						ModuleBoundaryNode.HashLabel label = new ModuleBoundaryNode.HashLabel(line);
-						ApplicationModuleSet.getInstance().crossModuleLabels.put(label.hash, label);
-					}
-				} finally {
-					reader.close();
-				}
+				ApplicationModuleSet.getInstance().loadCrossModuleLabels(new FileInputStream(file));
 				continue;
 			}
 

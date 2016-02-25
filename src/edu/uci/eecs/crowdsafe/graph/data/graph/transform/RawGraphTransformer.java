@@ -200,11 +200,13 @@ public class RawGraphTransformer {
 					outputDir.mkdirs();
 					graphWriters = new ModuleDataWriter.Directory(outputDir, dataSource.getProcessName());
 					Log.log("Transform %s to %s", runDir.getAbsolutePath(), outputDir.getAbsolutePath());
-					transformGraph();
 					if (dataSource.hasStreamType(ExecutionTraceStreamType.XHASH)) {
+						ApplicationModuleSet.getInstance().loadCrossModuleLabels(
+								dataSource.getDataInputStream(ExecutionTraceStreamType.XHASH));
 						Files.copy(dataSource.getDataInputStream(ExecutionTraceStreamType.XHASH),
 								graphWriters.dataSink.getHashLabelPath());
 					}
+					transformGraph();
 				} catch (Throwable t) {
 					Log.log("Error transforming %s", inputPath);
 					Log.log(t);

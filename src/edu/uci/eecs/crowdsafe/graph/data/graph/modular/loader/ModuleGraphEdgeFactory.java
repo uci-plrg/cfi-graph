@@ -48,7 +48,7 @@ public class ModuleGraphEdgeFactory {
 		long value;
 		if (previousValue == null) {
 			value = input.readLong();
-			Log.log("Loaded edge value 0x%x", value);
+			Log.detail("Loaded edge value 0x%x", value);
 		} else {
 			value = previousValue;
 			previousValue = null;

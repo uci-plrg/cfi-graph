@@ -111,11 +111,12 @@ public class ApplicationAnonymousGraphs {
 				owner = owners.iterator().next();
 			} else {
 				if (owners.isEmpty()) {
-					Log.error(" ### Cannot find the owner for an anonymous subgraph of %d nodes with entry points %s",
+					Log.error(
+							" ### Error: cannot find the owner for an anonymous subgraph of %d nodes with entry points %s",
 							subgraph.getExecutableNodeCount(), subgraph.getEntryPoints());
 				} else {
 					Log.error(
-							" ### Multiple potential owners for an anonymous subgraph of %d nodes with entry points %s",
+							" ### Error: multiple potential owners for an anonymous subgraph of %d nodes with entry points %s",
 							subgraph.getExecutableNodeCount(), subgraph.getEntryPoints());
 				}
 				subgraph.logGraph(true);
@@ -124,7 +125,7 @@ public class ApplicationAnonymousGraphs {
 			}
 
 			if (executionExits.isEmpty() && returnNodes.isEmpty()) {
-				Log.error(" ### Missing exit from anonymous subgraph of %d nodes with entry points %s",
+				Log.error(" ### Error: missing exit from anonymous subgraph of %d nodes with entry points %s",
 						subgraph.getExecutableNodeCount(), subgraph.getEntryPoints());
 				subgraph.logGraph(true);
 				Log.warn(" ### exit\n");

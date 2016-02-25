@@ -1,11 +1,14 @@
 package edu.uci.eecs.crowdsafe.graph.data.application;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
 
 import edu.uci.eecs.crowdsafe.common.config.CrowdSafeConfiguration;
-import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleBoundaryNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleNode;
 import edu.uci.eecs.crowdsafe.graph.util.CrowdSafeTraceUtil;
@@ -53,7 +56,8 @@ public class ApplicationModuleSet {
 
 	public ApplicationModule establishModuleById(String instanceName) {
 		if (instanceName.startsWith(ApplicationModule.ANONYMOUS_MODULE_ID))
-			instanceName = instanceName.replace(ApplicationModule.ANONYMOUS_MODULE_ID, ApplicationModule.ANONYMOUS_MODULE_NAME);
+			instanceName = instanceName.replace(ApplicationModule.ANONYMOUS_MODULE_ID,
+					ApplicationModule.ANONYMOUS_MODULE_NAME);
 
 		return establishModuleByFileSystemName(instanceName);
 	}
@@ -74,11 +78,23 @@ public class ApplicationModuleSet {
 			crossModuleLabels.put(module.interceptionHash.hash, module.interceptionHash);
 		}
 		crossModuleLabels.put(module.anonymousGencodeHash.hash, module.anonymousGencodeHash);
-		
+
 		modulesByName.put(module.name, module);
 		modulesByFilename.put(module.filename, module);
 
 		return module;
+	}
+
+	public void loadCrossModuleLabels(InputStream xhashStream) throws IOException {
+		BufferedReader reader = new BufferedReader(new InputStreamReader(xhashStream));
+		try {
+			for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+				ModuleBoundaryNode.HashLabel label = new ModuleBoundaryNode.HashLabel(line);
+				crossModuleLabels.put(label.hash, label);
+			}
+		} finally {
+			reader.close();
+		}
 	}
 
 	public boolean isFromAnonymous(long crossModuleHash) {

@@ -40,12 +40,8 @@ public class AnonymousGraphWriter implements ModuleDataWriter.ModularData {
 		for (AnonymousGraph graph : graphs.getAllGraphs()) {
 			for (ModuleNode<?> entry : graph.getEntryPoints())
 				writeNode(entry);
-			for (ModuleNode<?> exit : graph.getExitPoints()) {
+			for (ModuleNode<?> exit : graph.getExitPoints()) 
 				writeNode(exit);
-				
-				HashLabel label = ((ModuleBoundaryNode) exit).hashLabel;
-				Log.log("X: 0x%x %s", exit.getHash(), label == null ? "null" : label);
-			}
 			for (ModuleNode<?> node : graph.getAllNodes()) {
 				if (!node.isModuleBoundaryNode())
 					writeNode(node);
