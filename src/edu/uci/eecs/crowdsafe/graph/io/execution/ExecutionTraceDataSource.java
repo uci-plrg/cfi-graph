@@ -13,6 +13,8 @@ public interface ExecutionTraceDataSource {
 	int getProcessId();
 
 	String getProcessName();
+	
+	boolean hasStreamType(ExecutionTraceStreamType streamType);
 
 	InputStream getDataInputStream(ExecutionTraceStreamType streamType) throws IOException;
 

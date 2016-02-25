@@ -1,12 +1,11 @@
 package edu.uci.eecs.crowdsafe.graph.data.application;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import edu.uci.eecs.crowdsafe.common.config.CrowdSafeConfiguration;
+import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleBoundaryNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleNode;
 import edu.uci.eecs.crowdsafe.graph.util.CrowdSafeTraceUtil;
@@ -31,6 +30,7 @@ public class ApplicationModuleSet {
 
 	public final File configDir;
 	public final Map<String, ApplicationModule> modulesByName = new HashMap<String, ApplicationModule>();
+	public final Map<String, ApplicationModule> modulesByFilename = new HashMap<String, ApplicationModule>();
 	// public final Map<Long, ApplicationModule> unitsByAnonymousEntryHash = new HashMap<Long, ApplicationModule>();
 	// public final Map<Long, ApplicationModule> unitsByAnonymousExitHash = new HashMap<Long, ApplicationModule>();
 	// public final Map<Long, ApplicationModule> unitsByInterceptionHash = new HashMap<Long, ApplicationModule>();
@@ -43,17 +43,19 @@ public class ApplicationModuleSet {
 		this.configDir = configDir;
 
 		modulesByName.put(ApplicationModule.SYSTEM_MODULE.name, ApplicationModule.SYSTEM_MODULE);
+		modulesByFilename.put(ApplicationModule.SYSTEM_MODULE.filename, ApplicationModule.SYSTEM_MODULE);
 		modulesByName.put(ApplicationModule.ANONYMOUS_MODULE.name, ApplicationModule.ANONYMOUS_MODULE);
+		modulesByFilename.put(ApplicationModule.ANONYMOUS_MODULE.filename, ApplicationModule.ANONYMOUS_MODULE);
 
 		for (int i = 0; i < ModuleNode.SYSCALL_COUNT; i++)
 			sysnumsBySyscallHash.put(CrowdSafeTraceUtil.stringHash(String.format("syscall#%d", i)), i);
 	}
 
-	public ApplicationModule establishModuleById(String unitName) {
-		if (unitName.startsWith(ApplicationModule.ANONYMOUS_MODULE_ID))
-			unitName = unitName.replace(ApplicationModule.ANONYMOUS_MODULE_ID, ApplicationModule.ANONYMOUS_MODULE_NAME);
+	public ApplicationModule establishModuleById(String instanceName) {
+		if (instanceName.startsWith(ApplicationModule.ANONYMOUS_MODULE_ID))
+			instanceName = instanceName.replace(ApplicationModule.ANONYMOUS_MODULE_ID, ApplicationModule.ANONYMOUS_MODULE_NAME);
 
-		return establishModuleByFileSystemName(unitName);
+		return establishModuleByFileSystemName(instanceName);
 	}
 
 	public synchronized ApplicationModule establishModuleByFileSystemName(String name) {
@@ -61,20 +63,20 @@ public class ApplicationModuleSet {
 		if (existing != null)
 			return existing;
 
-		boolean isDynamic = name.startsWith(ApplicationModule.ANONYMOUS_MODULE_NAME);
 		ApplicationModule module;
-		if (name.startsWith(ApplicationModule.ANONYMOUS_MODULE.name)) {
+		if (name.startsWith(ApplicationModule.ANONYMOUS_MODULE_NAME)) {
 			module = ApplicationModule.ANONYMOUS_MODULE;
 		} else {
-			module = new ApplicationModule(name, name, isDynamic);
+			module = new ApplicationModule(name, name);
 
 			crossModuleLabels.put(module.anonymousEntryHash.hash, module.anonymousEntryHash);
 			crossModuleLabels.put(module.anonymousExitHash.hash, module.anonymousExitHash);
 			crossModuleLabels.put(module.interceptionHash.hash, module.interceptionHash);
 		}
 		crossModuleLabels.put(module.anonymousGencodeHash.hash, module.anonymousGencodeHash);
-
+		
 		modulesByName.put(module.name, module);
+		modulesByFilename.put(module.filename, module);
 
 		return module;
 	}
@@ -94,7 +96,7 @@ public class ApplicationModuleSet {
 		if (label == null)
 			return "<unknown>";
 		else
-			return label.fromModuleName;
+			return label.fromModuleFilename;
 	}
 
 	public String getToModuleName(long crossModuleHash) {
@@ -102,6 +104,6 @@ public class ApplicationModuleSet {
 		if (label == null)
 			return "<unknown>";
 		else
-			return label.toModuleName;
+			return label.toModuleFilename;
 	}
 }

@@ -11,6 +11,7 @@ import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
 import edu.uci.eecs.crowdsafe.graph.data.graph.NodeIdentifier;
+import edu.uci.eecs.crowdsafe.graph.data.graph.OrdinalEdgeList;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.ModuleMetadataExecution;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.metadata.ModuleMetadataSequence;
@@ -38,13 +39,19 @@ public class ModuleGraphWriter implements ModuleDataWriter.ModularData {
 
 	public Map<Edge<ModuleNode<?>>, Integer> writeGraphBody() throws IOException {
 		List<Edge<ModuleNode<?>>> allEdges = new ArrayList<Edge<ModuleNode<?>>>();
+		OrdinalEdgeList<ModuleNode<?>> edges;
 
 		for (ModuleNode<?> node : graph.getAllNodes()) {
 			nodeIndexMap.put(node, nodeIndexMap.size());
 			dataWriter.writeNode(node);
 
-			for (Edge<ModuleNode<?>> edge : node.getOutgoingEdges()) {
-				allEdges.add(edge);
+			edges = node.getOutgoingEdges();
+			try {
+				for (Edge<ModuleNode<?>> edge : edges) {
+					allEdges.add(edge);
+				}
+			} finally {
+				edges.release();
 			}
 		}
 

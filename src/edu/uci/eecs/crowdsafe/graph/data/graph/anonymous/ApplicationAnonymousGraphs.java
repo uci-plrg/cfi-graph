@@ -1,6 +1,7 @@
 package edu.uci.eecs.crowdsafe.graph.data.graph.anonymous;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -21,6 +22,22 @@ public class ApplicationAnonymousGraphs {
 
 	private Map<ApplicationModule, ModuleAnonymousGraphs> graphsByOwner = new HashMap<ApplicationModule, ModuleAnonymousGraphs>();
 
+	public List<AnonymousGraph> getAllGraphs() {
+		List<AnonymousGraph> graphs = new ArrayList<AnonymousGraph>();
+		for (ModuleAnonymousGraphs moduleGraphs : graphsByOwner.values())
+			graphs.addAll(moduleGraphs.subgraphs);
+		return Collections.unmodifiableList(graphs);
+	}
+
+	public void addGraph(AnonymousGraph graph, ApplicationModule owner) {
+		ModuleAnonymousGraphs moduleGraphs = graphsByOwner.get(owner);
+		if (moduleGraphs == null) {
+			moduleGraphs = new ModuleAnonymousGraphs(owner);
+			graphsByOwner.put(owner, moduleGraphs);
+		}
+		moduleGraphs.addSubgraph(graph);
+	}
+
 	public void inflate(ModuleGraph<ModuleNode<?>> graph) {
 		Set<AnonymousGraph> subgraphs = MaximalSubgraphs.getMaximalSubgraphs(graph);
 
@@ -32,6 +49,11 @@ public class ApplicationAnonymousGraphs {
 		Set<ApplicationModule> entryModules = new HashSet<ApplicationModule>();
 		Set<ApplicationModule> owners = new HashSet<ApplicationModule>();
 
+		if (!graphsByOwner.isEmpty()) {
+			Log.warn("Warning: inflating an anonymous graph into an %s that is already populated with %d graphs!",
+					getClass().getSimpleName(), getAllGraphs().size());
+		}
+
 		for (AnonymousGraph subgraph : subgraphs) {
 			Log.log("Reporting graph 0x%x", subgraph.hashCode());
 
@@ -42,13 +64,13 @@ public class ApplicationAnonymousGraphs {
 			owners.clear();
 			entryModules.clear();
 			ApplicationModule fromModule, owner = null;
-			
+
 			for (ModuleNode<?> entryPoint : subgraph.getEntryPoints()) {
 				ModuleBoundaryNode.HashLabel label = ApplicationModuleSet.getInstance().crossModuleLabels
 						.get(entryPoint.getHash());
 				OrdinalEdgeList<ModuleNode<?>> edges = entryPoint.getOutgoingEdges();
 				try {
-					fromModule = ApplicationModuleSet.getInstance().modulesByName.get(label.fromModuleName);
+					fromModule = ApplicationModuleSet.getInstance().modulesByFilename.get(label.fromModuleFilename);
 					if (label.isGencode()) {
 						gencodeEntries.addAll(edges);
 						owners.add(fromModule);
@@ -66,6 +88,10 @@ public class ApplicationAnonymousGraphs {
 			for (ModuleNode<?> exitPoint : subgraph.getExitPoints()) {
 				ModuleBoundaryNode.HashLabel label = ApplicationModuleSet.getInstance().crossModuleLabels.get(exitPoint
 						.getHash());
+				if (label == null) {
+					Log.log("Warning: no label for exit point %s", exitPoint);
+					continue;
+				}
 				if (!label.isGencode()) {
 					OrdinalEdgeList<ModuleNode<?>> edges = exitPoint.getIncomingEdges();
 					try {
@@ -119,13 +145,8 @@ public class ApplicationAnonymousGraphs {
 			for (ModuleNode<?> returnNode : returnNodes)
 				Log.log("\t%s", returnNode);
 			Log.log(" === SDR end\n");
-			
-			ModuleAnonymousGraphs moduleGraphs = graphsByOwner.get(owner);
-			if (moduleGraphs == null) {
-				moduleGraphs = new ModuleAnonymousGraphs(owner);
-				graphsByOwner.put(owner, moduleGraphs);
-			}
-			moduleGraphs.addSubgraph(subgraph);
+
+			addGraph(subgraph, owner);
 		}
 	}
 }

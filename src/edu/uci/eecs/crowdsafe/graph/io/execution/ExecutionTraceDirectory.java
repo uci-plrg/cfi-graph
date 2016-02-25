@@ -99,6 +99,11 @@ public class ExecutionTraceDirectory implements ExecutionTraceDataSource {
 	public String getProcessName() {
 		return processName;
 	}
+	
+	@Override
+	public boolean hasStreamType(ExecutionTraceStreamType streamType) {
+		return files.containsKey(streamType);
+	}
 
 	@Override
 	public InputStream getDataInputStream(ExecutionTraceStreamType streamType) throws IOException {

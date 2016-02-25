@@ -10,10 +10,12 @@ import java.util.Set;
 import edu.uci.eecs.crowdsafe.common.exception.InvalidGraphException;
 import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModuleSet;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
 import edu.uci.eecs.crowdsafe.graph.data.graph.OrdinalEdgeList;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleBoundaryNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleNode;
 
 public class AnonymousGraph extends ModuleGraph<ModuleNode<?>> {
@@ -98,6 +100,46 @@ public class AnonymousGraph extends ModuleGraph<ModuleNode<?>> {
 		}
 	}
 
+	public static ApplicationModule identifyOwner(AnonymousGraph graph) {
+		Set<ApplicationModule> entryModules = new HashSet<ApplicationModule>();
+		Set<ApplicationModule> owners = new HashSet<ApplicationModule>();
+		ApplicationModule fromModule, owner = null;
+
+		for (ModuleNode<?> entryPoint : graph.getEntryPoints()) {
+			ModuleBoundaryNode.HashLabel label = ApplicationModuleSet.getInstance().crossModuleLabels.get(entryPoint
+					.getHash());
+			OrdinalEdgeList<ModuleNode<?>> edges = entryPoint.getOutgoingEdges();
+			try {
+				fromModule = ApplicationModuleSet.getInstance().modulesByFilename.get(label.fromModuleFilename);
+				if (label.isGencode()) {
+					owners.add(fromModule);
+				} else {
+					entryModules.add(fromModule);
+				}
+			} finally {
+				edges.release();
+			}
+		}
+
+		owners.retainAll(entryModules);
+
+		if (owners.size() == 1) {
+			owner = owners.iterator().next();
+		} else {
+			if (owners.isEmpty()) {
+				Log.error(" ### Cannot find the owner for an anonymous subgraph of %d nodes with entry points %s",
+						graph.getExecutableNodeCount(), graph.getEntryPoints());
+			} else {
+				Log.error(" ### Multiple potential owners for an anonymous subgraph of %d nodes with entry points %s",
+						graph.getExecutableNodeCount(), graph.getEntryPoints());
+			}
+			graph.logGraph(true);
+			Log.warn(" ### ownership\n");
+		}
+
+		return owner;
+	}
+
 	private static int ID_INDEX = 0;
 
 	public final int id = ID_INDEX++;
@@ -105,8 +147,8 @@ public class AnonymousGraph extends ModuleGraph<ModuleNode<?>> {
 
 	private Analysis analysis = null;
 
-	public AnonymousGraph(String name, ApplicationModule module) {
-		super(name, module);
+	public AnonymousGraph(String name) {
+		super(name, ApplicationModule.ANONYMOUS_MODULE);
 	}
 
 	public boolean isJIT() {

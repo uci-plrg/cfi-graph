@@ -7,7 +7,8 @@ public enum ExecutionTraceStreamType {
 	CROSS_MODULE_EDGE("cross-module", 3),
 	GRAPH_NODE("graph-node", 2),
 	MODULE("module"),
-	META("meta", 1);
+	META("meta", 1),
+	XHASH("xhash");
 
 	public final String id;
 	public final int entryWordCount;

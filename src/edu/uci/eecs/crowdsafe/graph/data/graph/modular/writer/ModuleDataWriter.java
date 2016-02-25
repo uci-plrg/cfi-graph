@@ -2,8 +2,10 @@ package edu.uci.eecs.crowdsafe.graph.data.graph.modular.writer;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianOutputStream;
@@ -52,9 +54,18 @@ public class ModuleDataWriter {
 
 		private final Map<ApplicationModule, ModuleDataWriter> outputsByModule = new HashMap<ApplicationModule, ModuleDataWriter>();
 
-		public Directory(File directory, String processName) {
-			dataSink = new ModularTraceDirectory(directory);
+		private Directory(String processName, ModularTraceDataSink dataSink) {
 			filenameFormat = String.format("%s.%%s.%%s.%%s", processName);
+			this.dataSink = dataSink;
+		}
+
+		public Directory(File directory, String processName) {
+			this(processName, new ModularTraceDirectory(directory));
+		}
+
+		public Directory(File directory, String processName, Set<ModularTraceStreamType> requiredStreamTypes,
+				Set<ModularTraceStreamType> optionalStreamTypes) {
+			this(processName, new ModularTraceDirectory(directory, requiredStreamTypes, optionalStreamTypes));
 		}
 
 		public void establishModuleWriters(ModularData data) throws IOException {

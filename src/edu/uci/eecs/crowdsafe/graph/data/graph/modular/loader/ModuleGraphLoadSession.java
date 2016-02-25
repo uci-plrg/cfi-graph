@@ -7,10 +7,13 @@ import java.util.List;
 import edu.uci.eecs.crowdsafe.common.exception.InvalidGraphException;
 import edu.uci.eecs.crowdsafe.common.io.LittleEndianInputStream;
 import edu.uci.eecs.crowdsafe.common.log.Log;
+import edu.uci.eecs.crowdsafe.common.util.MutableInteger;
 import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.GraphLoadEventListener;
 import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
+import edu.uci.eecs.crowdsafe.graph.data.graph.anonymous.AnonymousGraph;
+import edu.uci.eecs.crowdsafe.graph.data.graph.anonymous.ApplicationAnonymousGraphs;
 import edu.uci.eecs.crowdsafe.graph.data.graph.anonymous.ModuleAnonymousGraphs;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ExecutionNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ProcessExecutionModuleSet;
@@ -70,11 +73,23 @@ public class ModuleGraphLoadSession {
 		return graphLoader.loadGraph();
 	}
 
-	public ModuleAnonymousGraphs loadAnonymousGraphs(ApplicationModule module, GraphLoadEventListener listener) {
+	public ApplicationAnonymousGraphs loadAnonymousGraphs(ApplicationModule module) throws IOException {
+		return loadAnonymousGraphs(module, null);
+	}
+
+	public ApplicationAnonymousGraphs loadAnonymousGraphs(ApplicationModule module, GraphLoadEventListener listener)
+			throws IOException {
 		if (!module.isAnonymous)
 			throw new IllegalArgumentException("Cannot load a statically compiled module as a set of anonymous graphs.");
-		
-		return null;
+
+		ApplicationAnonymousGraphs graphs = new ApplicationAnonymousGraphs();
+		AnonymousGraphLoader loader = new AnonymousGraphLoader(listener);
+		while (loader.ready()) {
+			AnonymousGraph graph = loader.loadGraph();
+			ApplicationModule owner = AnonymousGraph.identifyOwner(graph);
+			graphs.addGraph(graph, owner);
+		}
+		return graphs;
 	}
 
 	class GraphLoader {
@@ -185,6 +200,88 @@ public class ModuleGraphLoadSession {
 			} finally {
 				metadataLoader.close();
 			}
+		}
+	}
+
+	class AnonymousGraphLoader {
+		final GraphLoadEventListener listener;
+
+		final ApplicationModule module = ApplicationModule.ANONYMOUS_MODULE;
+
+		final ModuleGraphNodeFactory nodeFactory;
+		final ModuleGraphEdgeFactory edgeFactory;
+
+		final List<ModuleNode<?>> nodeList = new ArrayList<ModuleNode<?>>();
+		private MutableInteger subgraphNodeStartIndex = new MutableInteger(0);
+		private ModuleNode<?> lastNode = null;
+
+		private int graphCount = 0;
+
+		public AnonymousGraphLoader(GraphLoadEventListener listener) throws IOException {
+			this.listener = listener;
+
+			nodeFactory = new ModuleGraphNodeFactory(module, dataSource.getLittleEndianInputStream(module,
+					ModularTraceStreamType.GRAPH_NODE), listener);
+			edgeFactory = new ModuleGraphEdgeFactory(nodeList, dataSource.getLittleEndianInputStream(module,
+					ModularTraceStreamType.GRAPH_EDGE));
+			edgeFactory.activateSegmentedLoading(subgraphNodeStartIndex);
+		}
+
+		boolean ready() throws IOException {
+			return nodeFactory.ready();
+		}
+
+		AnonymousGraph loadGraph() throws IOException {
+			AnonymousGraph graph = new AnonymousGraph(String.format("Subgraph #%d loaded from %s", graphCount++,
+					dataSource.getDirectory().getAbsolutePath()));
+
+			if (lastNode != null) {
+				nodeList.add(lastNode);
+				graph.addNode(lastNode);
+			}
+
+			while (nodeFactory.ready()) {
+				ModuleNode<?> node = nodeFactory.createNode();
+
+				// identifies the start of the next subgraph
+				if (node.isModuleBoundaryNode() && lastNode != null && !lastNode.isModuleBoundaryNode()) {
+					lastNode = node;
+					break;
+				}
+
+				graph.addNode(node);
+				nodeList.add(node);
+				lastNode = node;
+
+				if (listener != null)
+					listener.graphAddition(node, graph);
+			}
+
+			while (edgeFactory.ready()) {
+				try {
+					Edge<ModuleNode<?>> edge = edgeFactory.createEdge();
+
+					if (edge == null)
+						break; // start of the next subgraph (can't be loaded until the nodes are loaded above)
+
+					if (listener != null)
+						listener.edgeCreation(edge);
+
+				} catch (Throwable t) {
+					Log.log("%s while creating an edge. Skipping it for now! Message: %s",
+							t.getClass().getSimpleName(), t.getMessage());
+				}
+			}
+
+			subgraphNodeStartIndex.setVal(subgraphNodeStartIndex.getVal() + nodeList.size());
+			nodeList.clear();
+
+			return graph;
+		}
+
+		void close() throws IOException {
+			nodeFactory.close();
+			edgeFactory.close();
 		}
 	}
 }

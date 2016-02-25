@@ -243,12 +243,19 @@ public class OrdinalEdgeList<EdgeEndpointType extends Node<EdgeEndpointType>> ex
 
 	@Override
 	public Object[] toArray() {
-		throw new UnsupportedOperationException("EdgeSet lists are for indexing and iteration only!");
+		Object a[] = new Object[size()];
+		toArray(a);
+		return a;
 	}
 
 	@Override
 	public <T> T[] toArray(T[] a) {
-		throw new UnsupportedOperationException("EdgeSet lists are for indexing and iteration only!");
+		int max = Math.min(size(), a.length);
+		
+		for (int i = 0; i < max; i++) 
+			a[i] = (T) get(i);
+		
+		return a;
 	}
 
 	@Override

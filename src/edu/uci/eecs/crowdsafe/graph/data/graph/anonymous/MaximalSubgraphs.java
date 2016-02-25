@@ -20,7 +20,7 @@ public class MaximalSubgraphs {
 		final Map<Long, ModuleBoundaryNode> boundaryNodes = new HashMap<Long, ModuleBoundaryNode>();
 
 		public Subgraph(ModuleGraph<ModuleNode<?>> originalGraph) {
-			graph = new AnonymousGraph("Anonymous maximal subgraph", originalGraph.module);
+			graph = new AnonymousGraph("Anonymous maximal subgraph");
 		}
 
 		void addClusterBoundaryEdge(ModuleBoundaryNode node, Edge<ModuleNode<?>> edge) {

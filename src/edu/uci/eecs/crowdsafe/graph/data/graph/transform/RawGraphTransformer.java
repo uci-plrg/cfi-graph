@@ -2,9 +2,12 @@ package edu.uci.eecs.crowdsafe.graph.data.graph.transform;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.CopyOption;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -198,6 +201,10 @@ public class RawGraphTransformer {
 					graphWriters = new ModuleDataWriter.Directory(outputDir, dataSource.getProcessName());
 					Log.log("Transform %s to %s", runDir.getAbsolutePath(), outputDir.getAbsolutePath());
 					transformGraph();
+					if (dataSource.hasStreamType(ExecutionTraceStreamType.XHASH)) {
+						Files.copy(dataSource.getDataInputStream(ExecutionTraceStreamType.XHASH),
+								graphWriters.dataSink.getHashLabelPath());
+					}
 				} catch (Throwable t) {
 					Log.log("Error transforming %s", inputPath);
 					Log.log(t);
@@ -248,8 +255,11 @@ public class RawGraphTransformer {
 			return;
 
 		long mainModuleStartAddress = input.readLong();
-		mainModule = executionModules.getModule(mainModuleStartAddress, 0, ExecutionTraceStreamType.GRAPH_NODE);
+		ModuleInstance mainModuleInstance = executionModules.getModule(mainModuleStartAddress, 0,
+				ExecutionTraceStreamType.GRAPH_NODE);
+		mainModule = ApplicationModuleSet.getInstance().modulesByName.get(mainModuleInstance.name);
 		graphWriters.establishModuleWriters(establishModuleData(mainModule));
+		// establishEdgeSet(mainModule);
 		Log.log("Main module is %s", mainModule);
 
 		RawGraphEntry.OneWordFactory factory = new RawGraphEntry.OneWordFactory(input);
@@ -745,13 +755,16 @@ public class RawGraphTransformer {
 			if (module == ApplicationModule.ANONYMOUS_MODULE) {
 				ApplicationAnonymousGraphs anonymousGraphs = new ApplicationAnonymousGraphs();
 				anonymousGraphs.inflate(graph);
-				AnonymousGraphWriter anonymousWriter = new AnonymousGraphWriter(anonymousGraphs, graphWriters.dataSink);
+				AnonymousGraphWriter anonymousWriter = new AnonymousGraphWriter(anonymousGraphs);
 				graphWriters.establishModuleWriters(anonymousWriter);
+				anonymousWriter.initialize(graphWriters.dataSink);
 				anonymousWriter.writeGraph();
 				// not setting edge indexes b/c there's no edge-specific metadata in the anonymous module
 			} else {
 				ModuleGraphWriter writer = new ModuleGraphWriter(graph, graphWriters.dataSink);
 				Map<Edge<ModuleNode<?>>, Integer> edgeIndexMap = writer.writeGraphBody();
+
+				// update each edge with the index at which it was written
 				for (Map.Entry<Edge<ModuleNode<?>>, Integer> edgeIndex : edgeIndexMap.entrySet()) {
 					transformedEdgeMap.get(edgeIndex.getKey()).setEdgeIndex(edgeIndex.getValue());
 				}

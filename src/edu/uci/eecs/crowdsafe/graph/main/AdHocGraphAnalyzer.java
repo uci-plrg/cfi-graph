@@ -46,7 +46,7 @@ public class AdHocGraphAnalyzer {
 				ModuleBoundaryNode.HashLabel entryLabel = ApplicationModuleSet.getInstance().crossModuleLabels.get(edge
 						.getFromNode().getHash());
 				ApplicationModule module = ApplicationModuleSet.getInstance().modulesByName
-						.get(entryLabel.toModuleName);
+						.get(entryLabel.toModuleFilename);
 				if (((ModuleNode) edge.getToNode()).isJITSingleton())
 					jitLinkedModules.add(module);
 				else
@@ -55,7 +55,7 @@ public class AdHocGraphAnalyzer {
 				ModuleBoundaryNode.HashLabel exitLabel = ApplicationModuleSet.getInstance().crossModuleLabels.get(edge
 						.getToNode().getHash());
 				ApplicationModule module = ApplicationModuleSet.getInstance().modulesByName
-						.get(exitLabel.fromModuleName);
+						.get(exitLabel.fromModuleFilename);
 				if (((ModuleNode) edge.getFromNode()).isJITSingleton())
 					jitLinkedModules.add(module);
 				else

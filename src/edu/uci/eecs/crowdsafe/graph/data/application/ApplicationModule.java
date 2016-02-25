@@ -11,7 +11,7 @@ public class ApplicationModule {
 	public static final String SYSTEM_MODULE_NAME = "__system";
 	public static final String ANONYMOUS_MODULE_NAME = "__anonymous";
 	// formerly "__cluster_boundary"... compatibility?
-	public static final String BOUNDARY_MODULE_NAME = "__module_boundary"; 
+	public static final String BOUNDARY_MODULE_NAME = "__module_boundary";
 	public static final String MAIN_MODULE_NAME = "<main-program>";
 
 	public static final String SYSTEM_MODULE_ID = "|system|";
@@ -23,13 +23,13 @@ public class ApplicationModule {
 
 	private static final Pattern FILENAME_PATTERN = Pattern.compile("^(.*)-([^\\-]+-[^\\-]+-[^\\-]+)$");
 
-	public static final ApplicationModule SYSTEM_MODULE = new ApplicationModule(SYSTEM_MODULE_NAME, SYSTEM_MODULE_ID,
+	public static final ApplicationModule SYSTEM_MODULE = new ApplicationModule(SYSTEM_MODULE_NAME, SYSTEM_MODULE_NAME,
 			false);
 	public static final ApplicationModule ANONYMOUS_MODULE = new ApplicationModule(ANONYMOUS_MODULE_NAME,
-			ANONYMOUS_MODULE_ID, true);
+			ANONYMOUS_MODULE_NAME, true);
 	public static final ApplicationModule BOUNDARY_MODULE = new ApplicationModule(BOUNDARY_MODULE_NAME,
-			BOUNDARY_MODULE_ID + ApplicationModule.EMPTY_VERSION);
-	public static final ApplicationModule MAIN_PROGRAM = new ApplicationModule(MAIN_MODULE_NAME, MAIN_MODULE_ID);
+			BOUNDARY_MODULE_NAME + ApplicationModule.EMPTY_VERSION);
+	public static final ApplicationModule MAIN_PROGRAM = new ApplicationModule(MAIN_MODULE_NAME, MAIN_MODULE_NAME);
 
 	public final String name;
 	public final String id;

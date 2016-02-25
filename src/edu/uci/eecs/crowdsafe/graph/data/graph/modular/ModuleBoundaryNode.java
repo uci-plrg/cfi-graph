@@ -1,13 +1,14 @@
 package edu.uci.eecs.crowdsafe.graph.data.graph.modular;
 
+import java.math.BigInteger;
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import edu.uci.eecs.crowdsafe.common.exception.InvalidGraphException;
-import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModuleSet;
 import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModuleSet;
 import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Node;
 import edu.uci.eecs.crowdsafe.graph.util.CrowdSafeTraceUtil;
@@ -117,37 +118,40 @@ public class ModuleBoundaryNode extends ModuleNode<ModuleBoundaryNode.Key> {
 			return hashLabel;
 		}
 
-		private static final Pattern ENTRY_PATTERN = Pattern.compile("^(0x[0-9a-f]+) ([^ ]+) (0x[0-9a-f]+)$");
+		private static final Pattern ENTRY_PATTERN = Pattern.compile("^0x([0-9a-f]+) ([^ ]+) 0x([0-9a-f]+)$");
 
 		public final String label;
 		public final long hash;
 		public final int offset;
-		public final String fromModuleName;
-		public final String toModuleName;
+		public final String fromModuleFilename;
+		public final String toModuleFilename;
 
 		private final Set<HashLabelProperty> properties = EnumSet.noneOf(HashLabelProperty.class);
 
-		private HashLabel(String label, long hash, int offset, String fromModuleName, String toModuleName) {
+		private HashLabel(String label, long hash, int offset, String fromModuleFilename, String toModuleFilename) {
 			this.label = label;
 			this.hash = hash;
 			this.offset = offset;
-			this.fromModuleName = fromModuleName;
-			this.toModuleName = toModuleName;
+			this.fromModuleFilename = fromModuleFilename;
+			this.toModuleFilename = toModuleFilename;
 		}
 
 		public HashLabel(String xhashEntry) {
 			Matcher matcher = ENTRY_PATTERN.matcher(xhashEntry);
 
-			hash = Long.parseLong(matcher.group(1), 0x10);
+			if (!matcher.matches())
+				throw new InvalidGraphException("Failed to parse xhash entry %s", xhashEntry);
+
+			hash = new BigInteger(matcher.group(1), 0x10).longValue();
 			label = matcher.group(2);
 			offset = Integer.parseInt(matcher.group(3), 0x10);
 
 			int slashIndex = label.indexOf('/');
 			if (slashIndex < 0) {
-				fromModuleName = toModuleName = null;
+				fromModuleFilename = toModuleFilename = null;
 			} else {
-				fromModuleName = label.substring(0, slashIndex);
-				toModuleName = label.substring(slashIndex + 1, label.indexOf('!'));
+				fromModuleFilename = label.substring(0, slashIndex);
+				toModuleFilename = label.substring(slashIndex + 1, label.indexOf('!'));
 			}
 
 			if (label.startsWith("anonymous/"))
@@ -185,6 +189,11 @@ public class ModuleBoundaryNode extends ModuleNode<ModuleBoundaryNode.Key> {
 
 		public boolean isExport() {
 			return properties.contains(HashLabelProperty.HASH_LABEL_EXPORT);
+		}
+
+		@Override
+		public String toString() {
+			return String.format("0x%x:%s", hash, label);
 		}
 	}
 
@@ -237,12 +246,14 @@ public class ModuleBoundaryNode extends ModuleNode<ModuleBoundaryNode.Key> {
 			context = "|interception";
 		else if (hashLabel.isExport())
 			context = hashLabel.label.length() > 30 ? hashLabel.label.substring(0, 30) : hashLabel.label;
+			
 
 		switch (key.type) {
 			case MODULE_ENTRY:
-				return String.format("(%s%s|%s)", hashLabel.fromModuleName, context, key.type.code);
+				return String.format("(%s%s|%s)", hashLabel.fromModuleFilename, context, key.type.code);
 			case MODULE_EXIT:
-				return String.format("(%s%s|%s)", hashLabel.toModuleName, context, key.type.code);
+				String toModuleFilename = (hashLabel.isExport() ? "" : hashLabel.toModuleFilename);
+				return String.format("(%s%s|%s)", toModuleFilename, context, key.type.code);
 			default:
 				throw new InvalidGraphException("%s with wrong type %s", getClass().getSimpleName(), key.type);
 		}

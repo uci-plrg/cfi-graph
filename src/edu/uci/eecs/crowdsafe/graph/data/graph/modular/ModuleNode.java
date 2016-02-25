@@ -52,6 +52,11 @@ public abstract class ModuleNode<KeyType extends Node.Key> extends Node<ModuleNo
 	public boolean isJITSingleton() {
 		return ((getType() == MetaNodeType.SINGLETON) && (getRelativeTag() >= JIT_SINGLETON_START) && (getRelativeTag() < JIT_SINGLETON_END));
 	}
+	
+	public boolean isModuleBoundaryNode() {
+		MetaNodeType type = getType();
+		return (type == MetaNodeType.MODULE_ENTRY || type == MetaNodeType.MODULE_EXIT);
+	}
 
 	@Override
 	public int hashCode() {
