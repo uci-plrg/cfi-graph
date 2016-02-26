@@ -120,6 +120,13 @@ public class ModuleBoundaryNode extends ModuleNode<ModuleBoundaryNode.Key> {
 
 		private static final Pattern ENTRY_PATTERN = Pattern.compile("^0x([0-9a-f]+) ([^ ]+) 0x([0-9a-f]+)$");
 
+		private static final String CALLBACK_TAG = "!callback";
+		private static final String GENCODE_TAG = "->gencode";
+		private static final String DGC_TAG = "->dgc";
+		private static final String ANONYMOUS_TAG = "anonymous";
+		private static final String FROM_ANONYMOUS_TAG = "anonymous/";
+		private static final String TO_ANONYMOUS_TAG = "/anonymous";
+
 		public final String label;
 		public final long hash;
 		public final int offset;
@@ -144,26 +151,32 @@ public class ModuleBoundaryNode extends ModuleNode<ModuleBoundaryNode.Key> {
 
 			hash = new BigInteger(matcher.group(1), 0x10).longValue();
 			label = matcher.group(2);
-			offset = Integer.parseInt(matcher.group(3), 0x10);
+			offset = (int) Long.parseLong(matcher.group(3), 0x10);
 
-			int slashIndex = label.indexOf('/');
-			if (slashIndex < 0) {
-				fromModuleFilename = toModuleFilename = null;
+			if (label.endsWith(DGC_TAG) || label.endsWith(GENCODE_TAG)) {
+				fromModuleFilename = label.substring(0, label.indexOf('@'));
+				toModuleFilename = null;
 			} else {
-				fromModuleFilename = label.substring(0, slashIndex);
-				toModuleFilename = label.substring(slashIndex + 1, label.indexOf('!'));
+				int slashIndex = label.indexOf('/');
+				if (slashIndex < 0) {
+					fromModuleFilename = toModuleFilename = null;
+				} else {
+					fromModuleFilename = label.substring(0, slashIndex);
+					toModuleFilename = label.substring(slashIndex + 1, label.indexOf('!'));
+				}
 			}
 
-			if (label.startsWith("anonymous/"))
+			if (label.startsWith(FROM_ANONYMOUS_TAG)
+					|| (fromModuleFilename != null && fromModuleFilename.equals(ANONYMOUS_TAG)))
 				properties.add(HashLabelProperty.HASH_LABEL_FROM_ANONYMOUS);
-			else if (label.contains("/anonymous"))
+			else if (label.contains(TO_ANONYMOUS_TAG) || label.endsWith(DGC_TAG) || label.endsWith(GENCODE_TAG))
 				properties.add(HashLabelProperty.HASH_LABEL_TO_ANONYMOUS);
 			else if (!label.contains("/"))
 				properties.add(HashLabelProperty.HASH_LABEL_EXPORT);
 
-			if (label.endsWith("!callback"))
+			if (label.endsWith(CALLBACK_TAG))
 				properties.add(HashLabelProperty.HASH_LABEL_CALLBACK);
-			else if (label.endsWith("!gencode"))
+			else if (label.endsWith(GENCODE_TAG))
 				properties.add(HashLabelProperty.HASH_LABEL_GENCODE);
 		}
 
@@ -246,7 +259,6 @@ public class ModuleBoundaryNode extends ModuleNode<ModuleBoundaryNode.Key> {
 			context = "|interception";
 		else if (hashLabel.isExport())
 			context = hashLabel.label.length() > 30 ? hashLabel.label.substring(0, 30) : hashLabel.label;
-			
 
 		switch (key.type) {
 			case MODULE_ENTRY:
