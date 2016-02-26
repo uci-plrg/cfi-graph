@@ -248,27 +248,28 @@ public class ModuleBoundaryNode extends ModuleNode<ModuleBoundaryNode.Key> {
 		return key.type;
 	}
 
+	private String limit(String src, int limit) {
+		return src.length() > limit ? src.substring(0, limit) : src;
+	}
+
 	public String identify() {
 		if (hashLabel == null)
 			return String.format("(0x%x|%s)", key.hash, key.type.code);
 
-		String context = "";
-		if (hashLabel.isCallback())
-			context = "|callback";
-		else if (hashLabel.isInterception())
-			context = "|interception";
-		else if (hashLabel.isExport())
-			context = hashLabel.label.length() > 30 ? hashLabel.label.substring(0, 30) : hashLabel.label;
+		String fileContext = (key.type == MetaNodeType.MODULE_ENTRY ? hashLabel.fromModuleFilename
+				: hashLabel.toModuleFilename);
 
-		switch (key.type) {
-			case MODULE_ENTRY:
-				return String.format("(%s%s|%s)", hashLabel.fromModuleFilename, context, key.type.code);
-			case MODULE_EXIT:
-				String toModuleFilename = (hashLabel.isExport() ? "" : hashLabel.toModuleFilename);
-				return String.format("(%s%s|%s)", toModuleFilename, context, key.type.code);
-			default:
-				throw new InvalidGraphException("%s with wrong type %s", getClass().getSimpleName(), key.type);
+		String target = "";
+		if (hashLabel.isCallback()) {
+			target = "|callback";
+		} else if (hashLabel.isInterception()) {
+			target = "|interception";
+		} else if (hashLabel.isExport() || hashLabel.isToAnonymous()) {
+			target = limit(hashLabel.label, 30);
+			fileContext = "";
 		}
+
+		return String.format("(%s%s|%s)", fileContext, target, key.type.code);
 	}
 
 	@Override
