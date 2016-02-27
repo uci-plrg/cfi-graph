@@ -6,11 +6,13 @@ import java.util.List;
 import java.util.Set;
 
 import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
+import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModuleSet;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.OrdinalEdgeList;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleBasicBlock;
+import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleBoundaryNode;
 import edu.uci.eecs.crowdsafe.graph.data.graph.modular.ModuleNode;
 
 public class AnonymousGraphSetDistiller {
@@ -27,36 +29,34 @@ public class AnonymousGraphSetDistiller {
 		abstract void deactivate();
 	}
 
-	private class MergeStack<FrameData, FrameType extends Frame<FrameData>> {
-		private final List<FrameType> frames = new ArrayList<FrameType>();
-		private int framePointer = 0;
-		private FrameType top = null;
-		private Class<FrameType> frameType;
+	private interface FrameFactory<FrameType extends Frame<?>> {
+		FrameType createFrame();
+	}
 
-		public MergeStack(Class<FrameType> frameType) {
-			this.frameType = frameType;
+	private static class MergeStack<FrameData, FrameType extends Frame<FrameData>> {
+		private final List<FrameType> frames = new ArrayList<FrameType>();
+		private int framePointer = -1;
+		private FrameType top = null;
+		private FrameFactory<FrameType> factory;
+
+		public MergeStack(FrameFactory<FrameType> factory) {
+			this.factory = factory;
 		}
 
-		private void expand() {
-			try {
-				for (int i = frames.size(); i <= framePointer; i++)
-					frames.add(frameType.newInstance());
-			} catch (InstantiationException e) {
-				throw new IllegalStateException(e);
-			} catch (IllegalAccessException e) {
-				throw new IllegalStateException(e);
-			}
+		private void expand(int limit) {
+			for (int i = frames.size(); i <= limit; i++)
+				frames.add(factory.createFrame());
 		}
 
 		void reset() {
-			framePointer = 0;
+			framePointer = -1;
 			top = null;
 		}
 
 		void push(FrameData left, FrameData right) {
-			expand();
+			expand(framePointer + 1);
 
-			FrameType push = frames.get(framePointer++);
+			FrameType push = frames.get(++framePointer);
 			push.activate(left, right);
 			top = push;
 		}
@@ -65,13 +65,28 @@ public class AnonymousGraphSetDistiller {
 			top.deactivate();
 			top = frames.get(--framePointer);
 		}
+
+		boolean isBaseFrame() {
+			return framePointer == 0;
+		}
+
+		int size() {
+			return framePointer + 1;
+		}
+	}
+
+	private class NodeFrameFactory implements FrameFactory<NodeFrame> {
+		@Override
+		public NodeFrame createFrame() {
+			return new NodeFrame();
+		}
 	}
 
 	private class NodeFrame extends Frame<ModuleNode<?>> {
 		final List<Edge<ModuleNode<?>>> leftEdges = new ArrayList<Edge<ModuleNode<?>>>();
 		final List<Edge<ModuleNode<?>>> rightEdges = new ArrayList<Edge<ModuleNode<?>>>();
 
-		final MergeStack<Edge<ModuleNode<?>>, EdgeFrame> edgeStack = new MergeStack(EdgeFrame.class);
+		final MergeStack<Edge<ModuleNode<?>>, EdgeFrame> edgeStack = new MergeStack(new EdgeFrameFactory());
 
 		ModuleNode<?> left, right;
 
@@ -80,6 +95,8 @@ public class AnonymousGraphSetDistiller {
 			this.left = left;
 			this.right = right;
 
+			leftEdges.clear();
+			rightEdges.clear();
 			OrdinalEdgeList<ModuleNode<?>> edges = left.getOutgoingEdges();
 			try {
 				leftEdges.addAll(edges);
@@ -119,11 +136,20 @@ public class AnonymousGraphSetDistiller {
 		void changeLeftEdge(int leftIndex) {
 			leftEdges.set(edgeStack.top.leftIndex, edgeStack.top.left);
 			edgeStack.top.changeLeftEdge(leftIndex, leftEdges.get(leftIndex));
+			leftEdges.set(edgeStack.top.leftIndex, null);
 		}
 
 		void changeRightEdge(int rightIndex) {
 			rightEdges.set(edgeStack.top.rightIndex, edgeStack.top.right);
 			edgeStack.top.changeRightEdge(rightIndex, rightEdges.get(rightIndex));
+			rightEdges.set(edgeStack.top.rightIndex, null);
+		}
+	}
+
+	private class EdgeFrameFactory implements FrameFactory<EdgeFrame> {
+		@Override
+		public EdgeFrame createFrame() {
+			return new EdgeFrame();
 		}
 	}
 
@@ -170,7 +196,7 @@ public class AnonymousGraphSetDistiller {
 			distiller.distillGraphs(graphs.getOwnerGraphs(owner).subgraphs);
 	}
 
-	private final MergeStack<ModuleNode<?>, NodeFrame> mergeStack = new MergeStack(NodeFrame.class);
+	private final MergeStack<ModuleNode<?>, NodeFrame> mergeStack = new MergeStack(new NodeFrameFactory());
 	private final Set<ModuleNode<?>> visitedLeftNodes = new HashSet<ModuleNode<?>>();
 	private final Set<ModuleNode<?>> visitedRightNodes = new HashSet<ModuleNode<?>>();
 
@@ -182,11 +208,13 @@ public class AnonymousGraphSetDistiller {
 		boolean changed = true;
 		while (changed) {
 			changed = false;
-			for (int i = graphs.size() - 1; i > 1; i--) {
+			for (int i = graphs.size() - 1; i > 0; i--) {
 				AnonymousGraph left = graphs.get(i);
-				for (int j = i - 1; j > 0; j--) {
+				for (int j = i - 1; j >= 0; j--) {
 					AnonymousGraph right = graphs.get(j);
 					MergeResult result = merge(left, right);
+
+					System.out.println(String.format("Merge graph #%d into #%d: %s", i, j, result));
 
 					if (result != MergeResult.DISTINCT) {
 						graphs.remove(i);
@@ -208,13 +236,6 @@ public class AnonymousGraphSetDistiller {
 		return metaEntryNode;
 	}
 
-	/*
-	 * For each edge on the left, find a subsuming edge on the right. Any node may have multiple neighbors with the same
-	 * hash, so we have to check every permutation of edge pairings. There should never be a large number of targets, so
-	 * we could just try every permutation of edges. Would it help to sort them by ordinal and target hash? Seems like I
-	 * still need a stack of them.
-	 */
-
 	private MergeResult merge(AnonymousGraph left, AnonymousGraph right) {
 		if (left.getEntryPoints().size() != right.getEntryPoints().size())
 			return MergeResult.DISTINCT;
@@ -223,6 +244,8 @@ public class AnonymousGraphSetDistiller {
 			if (right.getEntryPoint(leftEntryHash) == null)
 				return MergeResult.DISTINCT;
 		}
+
+		// TODO: quick filter by node hashes also
 
 		visitedLeftNodes.clear();
 		visitedRightNodes.clear();
@@ -233,26 +256,152 @@ public class AnonymousGraphSetDistiller {
 
 		merge_stack: while (true) {
 			mergeStack.top.pushEdgePair(0, 0);
-			for (int i = mergeStack.top.edgeStack.top.leftIndex + 1; i < mergeStack.top.leftEdges.size(); i++) {
-				for (int j = mergeStack.top.edgeStack.top.rightIndex + 1; j < mergeStack.top.rightEdges.size(); j++) {
+			left_edges: for (int i = mergeStack.top.edgeStack.top.leftIndex + 1; i <= mergeStack.top.leftEdges.size(); i++) {
+				for (int j = mergeStack.top.edgeStack.top.rightIndex + 1; j <= mergeStack.top.rightEdges.size(); j++) {
 					if (mergeStack.top.edgeStack.top.isCompatible()) {
-						mergeStack.push(mergeStack.top.edgeStack.top.leftNode, mergeStack.top.edgeStack.top.rightNode);
-						continue merge_stack;
+						if (mergeStack.top.edgeStack.top.leftNode.getType() == MetaNodeType.MODULE_EXIT) {
+							while (mergeStack.top.edgeStack.size() == mergeStack.top.leftEdges.size()) {
+								if (mergeStack.isBaseFrame())
+									return MergeResult.SUBSUMED;
+								mergeStack.pop();
+							}
+							while (mergeStack.top.edgeStack.top.rightIndex >= mergeStack.top.rightEdges.size()) {
+								if (mergeStack.isBaseFrame())
+									return MergeResult.DISTINCT;
+								mergeStack.pop();
+							}
+							i = mergeStack.top.edgeStack.top.leftIndex;
+							mergeStack.top.pushEdgePair(i, mergeStack.top.edgeStack.top.rightIndex);
+							continue left_edges; // continue merging left edges
+						} else {
+							mergeStack.top.edgeStack.top.leftIndex = i;
+							mergeStack.top.edgeStack.top.rightIndex = j;
+							mergeStack.push(mergeStack.top.edgeStack.top.leftNode,
+									mergeStack.top.edgeStack.top.rightNode);
+							continue merge_stack;
+						}
 					} else {
 						while (j < mergeStack.top.rightEdges.size() && mergeStack.top.rightEdges.get(j) == null)
 							j++;
-						mergeStack.top.changeRightEdge(j);
+						if (j == mergeStack.top.rightEdges.size()) {
+							if (mergeStack.isBaseFrame())
+								return MergeResult.DISTINCT;
+							mergeStack.pop(); // edge match failed, so contrinue trying right edges
+							j = mergeStack.top.edgeStack.top.rightIndex + 1;
+						} else {
+							mergeStack.top.changeRightEdge(j);
+						}
 					}
 				}
-				mergeStack.top.edgeStack.top.rightIndex = 0;
-				while (i < mergeStack.top.leftEdges.size() && mergeStack.top.leftEdges.get(i) == null)
-					i++;
-				mergeStack.top.changeLeftEdge(i);
+				return MergeResult.DISTINCT;
 			}
-			// cannot merge this node frame, so pop and continue the previous frame
-			break;
+			throw new IllegalStateException("unreachable");
+		}
+	}
+
+	private static class UnitTestGraph {
+		private static int GRAPH_INDEX = 0;
+
+		private final AnonymousGraph graph = new AnonymousGraph("Unit test graph #" + (GRAPH_INDEX++));
+		private final List<ModuleNode<?>> nodesByTag = new ArrayList<ModuleNode<?>>();
+
+		private void addNode(ModuleNode<?> node) {
+			graph.addNode(node);
+			nodesByTag.add(node);
 		}
 
-		return MergeResult.SUBSUMED;
+		void addNodes(MetaNodeType type, long... hashes) {
+			if (type == MetaNodeType.MODULE_ENTRY || type == MetaNodeType.MODULE_EXIT) {
+				for (long hash : hashes)
+					addNode(new ModuleBoundaryNode(hash, type));
+			} else {
+				for (long hash : hashes)
+					addNode(new ModuleBasicBlock(ApplicationModule.ANONYMOUS_MODULE, nodesByTag.size(), 0, hash, type));
+			}
+		}
+
+		void addEdge(int fromTag, int toTag, EdgeType type, int ordinal) {
+			ModuleNode<?> fromNode = nodesByTag.get(fromTag - 1);
+			fromNode.addOutgoingEdge(new Edge<ModuleNode<?>>(fromNode, nodesByTag.get(toTag - 1), type, ordinal));
+		}
+	}
+
+	private static class UnitTest {
+		void test1() {
+			UnitTestGraph graph1 = new UnitTestGraph();
+			graph1.addNodes(MetaNodeType.MODULE_ENTRY, 10);
+			graph1.addNodes(MetaNodeType.NORMAL, 20, 30, 40);
+			graph1.addNodes(MetaNodeType.MODULE_EXIT, 50);
+			graph1.addEdge(1, 2, EdgeType.INDIRECT, 0);
+			graph1.addEdge(2, 3, EdgeType.DIRECT, 0);
+			graph1.addEdge(2, 4, EdgeType.DIRECT, 1);
+			graph1.addEdge(3, 5, EdgeType.DIRECT, 0);
+			graph1.addEdge(4, 5, EdgeType.DIRECT, 0);
+
+			UnitTestGraph graph2 = new UnitTestGraph();
+			graph2.addNodes(MetaNodeType.MODULE_ENTRY, 10);
+			graph2.addNodes(MetaNodeType.NORMAL, 20, 30, 40);
+			graph2.addNodes(MetaNodeType.MODULE_EXIT, 50);
+			graph2.addEdge(1, 2, EdgeType.INDIRECT, 0);
+			graph2.addEdge(2, 3, EdgeType.DIRECT, 0);
+			graph2.addEdge(2, 4, EdgeType.DIRECT, 1);
+			graph2.addEdge(3, 5, EdgeType.DIRECT, 0);
+			graph2.addEdge(4, 5, EdgeType.DIRECT, 0);
+
+			UnitTestGraph graph3 = new UnitTestGraph();
+			graph3.addNodes(MetaNodeType.MODULE_ENTRY, 10);
+			graph3.addNodes(MetaNodeType.NORMAL, 20, 30);
+			graph3.addNodes(MetaNodeType.MODULE_EXIT, 50);
+			graph3.addEdge(1, 2, EdgeType.INDIRECT, 0);
+			graph3.addEdge(2, 3, EdgeType.DIRECT, 0);
+			graph3.addEdge(3, 4, EdgeType.DIRECT, 0);
+
+			UnitTestGraph graph4 = new UnitTestGraph();
+			graph4.addNodes(MetaNodeType.MODULE_ENTRY, 10);
+			graph4.addNodes(MetaNodeType.NORMAL, 20, 30, 60);
+			graph4.addNodes(MetaNodeType.MODULE_EXIT, 50);
+			graph4.addEdge(1, 2, EdgeType.INDIRECT, 0);
+			graph4.addEdge(2, 3, EdgeType.DIRECT, 0);
+			graph4.addEdge(2, 4, EdgeType.DIRECT, 1);
+			graph4.addEdge(3, 5, EdgeType.DIRECT, 0);
+			graph4.addEdge(4, 5, EdgeType.DIRECT, 0);
+
+			UnitTestGraph graph5 = new UnitTestGraph();
+			graph5.addNodes(MetaNodeType.MODULE_ENTRY, 10);
+			graph5.addNodes(MetaNodeType.NORMAL, 20, 60);
+			graph5.addNodes(MetaNodeType.MODULE_EXIT, 50);
+			graph5.addEdge(1, 2, EdgeType.INDIRECT, 0);
+			graph5.addEdge(2, 3, EdgeType.DIRECT, 0);
+			graph5.addEdge(3, 4, EdgeType.DIRECT, 0);
+
+			UnitTestGraph graph6 = new UnitTestGraph();
+			graph6.addNodes(MetaNodeType.MODULE_ENTRY, 10);
+			graph6.addNodes(MetaNodeType.NORMAL, 20, 60);
+			graph6.addNodes(MetaNodeType.MODULE_EXIT, 50);
+			graph6.addEdge(1, 2, EdgeType.INDIRECT, 0);
+			graph6.addEdge(2, 3, EdgeType.DIRECT, 1);
+			graph6.addEdge(3, 4, EdgeType.DIRECT, 0);
+
+			List<AnonymousGraph> graphs = new ArrayList<AnonymousGraph>();
+			graphs.add(graph1.graph);
+			graphs.add(graph2.graph);
+			graphs.add(graph3.graph);
+			graphs.add(graph4.graph);
+			graphs.add(graph5.graph);
+			graphs.add(graph6.graph);
+
+			AnonymousGraphSetDistiller distiller = new AnonymousGraphSetDistiller();
+			distiller.distillGraphs(graphs);
+
+			System.out.println(String.format("Unit test ended with %d graphs", graphs.size()));
+		}
+	}
+
+	/* unit test */
+	public static void main(String[] args) {
+		ApplicationModuleSet.initialize(null);
+
+		UnitTest test = new UnitTest();
+		test.test1();
 	}
 }
