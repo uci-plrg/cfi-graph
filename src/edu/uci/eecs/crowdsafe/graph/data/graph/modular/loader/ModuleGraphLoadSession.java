@@ -73,15 +73,12 @@ public class ModuleGraphLoadSession {
 		return graphLoader.loadGraph();
 	}
 
-	public ApplicationAnonymousGraphs loadAnonymousGraphs(ApplicationModule module) throws IOException {
-		return loadAnonymousGraphs(module, null);
+	public ApplicationAnonymousGraphs loadAnonymousGraphs() throws IOException {
+		return loadAnonymousGraphs(null);
 	}
 
-	public ApplicationAnonymousGraphs loadAnonymousGraphs(ApplicationModule module, GraphLoadEventListener listener)
+	public ApplicationAnonymousGraphs loadAnonymousGraphs(GraphLoadEventListener listener)
 			throws IOException {
-		if (!module.isAnonymous)
-			throw new IllegalArgumentException("Cannot load a statically compiled module as a set of anonymous graphs.");
-
 		ApplicationAnonymousGraphs graphs = new ApplicationAnonymousGraphs();
 		AnonymousGraphLoader loader = new AnonymousGraphLoader(listener);
 		while (loader.ready()) {

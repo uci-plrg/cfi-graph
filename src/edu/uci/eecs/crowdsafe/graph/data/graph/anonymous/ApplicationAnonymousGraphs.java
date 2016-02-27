@@ -28,6 +28,14 @@ public class ApplicationAnonymousGraphs {
 			graphs.addAll(moduleGraphs.subgraphs);
 		return Collections.unmodifiableList(graphs);
 	}
+	
+	public Set<ApplicationModule> getOwners() {
+		return graphsByOwner.keySet();
+	}
+	
+	public ModuleAnonymousGraphs getOwnerGraphs(ApplicationModule owner) {
+		return graphsByOwner.get(owner);
+	}
 
 	public void addGraph(AnonymousGraph graph, ApplicationModule owner) {
 		ModuleAnonymousGraphs moduleGraphs = graphsByOwner.get(owner);

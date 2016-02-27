@@ -91,18 +91,22 @@ public class ModuleAnonymousGraphs {
 			// throw new IllegalArgumentException("Cannot add a second subgraph to a black box module!");
 		}
 
-		subgraphs.add(subgraph);
+		// add in size order
+		int i = 0, subgraphSize = subgraph.getNodeCount();
+		for (; i < subgraphs.size() && subgraphs.get(i).getNodeCount() > subgraphSize; i++)
+			;
+		subgraphs.add(i, subgraph);
 
-		totalNodeCount += subgraph.getNodeCount();
+		totalNodeCount += subgraphSize;
 		executableNodeCount += subgraph.getExecutableNodeCount();
 	}
 
-	public void replaceSubgraph(AnonymousGraph replaceMe, AnonymousGraph withMe) {
-		subgraphs.set(subgraphs.indexOf(replaceMe), withMe);
-		totalNodeCount -= replaceMe.getNodeCount();
-		totalNodeCount += withMe.getNodeCount();
-		executableNodeCount -= replaceMe.getExecutableNodeCount();
-		executableNodeCount += withMe.getExecutableNodeCount();
+	public void replaceSubgraph(AnonymousGraph removeMe, AnonymousGraph addMe) {
+		subgraphs.set(subgraphs.indexOf(removeMe), addMe);
+		totalNodeCount -= removeMe.getNodeCount();
+		totalNodeCount += addMe.getNodeCount();
+		executableNodeCount -= removeMe.getExecutableNodeCount();
+		executableNodeCount += addMe.getExecutableNodeCount();
 	}
 
 	public int getNodeCount() {

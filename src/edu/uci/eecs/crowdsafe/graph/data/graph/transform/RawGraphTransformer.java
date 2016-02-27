@@ -245,8 +245,6 @@ public class RawGraphTransformer {
 				intraModuleSuspiciousSyscallQueue.size(), crossModuleSuspiciousSyscallQueue.size());
 
 		writeGraph();
-		// writeNodes();
-		// writeEdges();
 		writeMetadata();
 		graphWriters.flush();
 	}
@@ -774,6 +772,8 @@ public class RawGraphTransformer {
 		}
 	}
 
+	/**
+	 * <pre>
 	private void writeNodes() throws IOException {
 		for (ApplicationModule module : nodesByModule.keySet()) {
 			ModuleDataWriter writer = graphWriters.getWriter(module);
@@ -795,6 +795,7 @@ public class RawGraphTransformer {
 			}
 		}
 	}
+	 */
 
 	private void writeMetadata() throws IOException {
 		UnexpectedIndirectBranches uibsMain = null;
