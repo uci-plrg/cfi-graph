@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import edu.uci.eecs.crowdsafe.common.log.Log;
 import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModule;
 import edu.uci.eecs.crowdsafe.graph.data.application.ApplicationModuleSet;
 import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
@@ -196,15 +197,23 @@ public class AnonymousGraphSetDistiller {
 			distiller.distillGraphs(graphs.getOwnerGraphs(owner).subgraphs);
 	}
 
+	public static void distillGraphs(ApplicationAnonymousGraphs newGraphs, ApplicationAnonymousGraphs destinationGraphs) {
+		AnonymousGraphSetDistiller distiller = new AnonymousGraphSetDistiller();
+
+		// TODO: always merge JIT graph by union
+		
+		for (ApplicationModule owner : newGraphs.getOwners()) {
+			ModuleAnonymousGraphs existingGraphs = destinationGraphs.getOwnerGraphs(owner);
+			if (existingGraphs != null)
+				distiller.distillGraphs(newGraphs.getOwnerGraphs(owner).subgraphs, existingGraphs.subgraphs);
+		}
+	}
+
 	private final MergeStack<ModuleNode<?>, NodeFrame> mergeStack = new MergeStack(new NodeFrameFactory());
 	private final Set<ModuleNode<?>> visitedLeftNodes = new HashSet<ModuleNode<?>>();
 	private final Set<ModuleNode<?>> visitedRightNodes = new HashSet<ModuleNode<?>>();
 
-	private List<AnonymousGraph> graphs;
-
 	public void distillGraphs(List<AnonymousGraph> graphs) {
-		this.graphs = graphs;
-
 		boolean changed = true;
 		while (changed) {
 			changed = false;
@@ -214,7 +223,7 @@ public class AnonymousGraphSetDistiller {
 					AnonymousGraph right = graphs.get(j);
 					MergeResult result = merge(left, right);
 
-					System.out.println(String.format("Merge graph #%d into #%d: %s", i, j, result));
+					Log.log("Merge graph #%d into #%d: %s", i, j, result);
 
 					if (result != MergeResult.DISTINCT) {
 						graphs.remove(i);
@@ -224,6 +233,55 @@ public class AnonymousGraphSetDistiller {
 				}
 			}
 		}
+	}
+
+	public void distillGraphs(List<AnonymousGraph> newGraphs, List<AnonymousGraph> destinationGraphs) {
+		for (int i = newGraphs.size() - 1; i >= 0; i--) {
+			AnonymousGraph newGraph = newGraphs.get(i);
+			for (int j = 0; j < destinationGraphs.size(); j++) {
+				AnonymousGraph existingGraph = destinationGraphs.get(j);
+				MergeResult result = merge(newGraph, existingGraph);
+
+				if (result != MergeResult.DISTINCT) {
+					newGraphs.remove(i);
+					break;
+				}
+			}
+		}
+
+		List<AnonymousGraph> combinedGraphs = new ArrayList<AnonymousGraph>();
+		int i = 1, j = 1;
+		AnonymousGraph newGraph = newGraphs.get(0);
+		AnonymousGraph existingGraph = destinationGraphs.get(0);
+		while (true) {
+			if (newGraph.getNodeCount() > existingGraph.getNodeCount()) {
+				combinedGraphs.add(newGraph);
+				if (i < newGraphs.size()) {
+					newGraph = newGraphs.get(i++);
+				} else {
+					if (j < destinationGraphs.size())
+						combinedGraphs.addAll(destinationGraphs.subList(j - 1, destinationGraphs.size()));
+					else
+						combinedGraphs.add(existingGraph);
+					break;
+				}
+			} else {
+				combinedGraphs.add(existingGraph);
+				if (j < destinationGraphs.size()) {
+					existingGraph = destinationGraphs.get(j++);
+				} else {
+					if (i < newGraphs.size())
+						combinedGraphs.addAll(newGraphs.subList(i - 1, newGraphs.size()));
+					else
+						combinedGraphs.add(newGraph);
+					break;
+				}
+			}
+		}
+
+		distillGraphs(combinedGraphs);
+		destinationGraphs.clear();
+		destinationGraphs.addAll(combinedGraphs);
 	}
 
 	private ModuleNode<?> createMetaEntryNode(AnonymousGraph graph) {
@@ -259,26 +317,45 @@ public class AnonymousGraphSetDistiller {
 			left_edges: for (int i = mergeStack.top.edgeStack.top.leftIndex + 1; i <= mergeStack.top.leftEdges.size(); i++) {
 				for (int j = mergeStack.top.edgeStack.top.rightIndex + 1; j <= mergeStack.top.rightEdges.size(); j++) {
 					if (mergeStack.top.edgeStack.top.isCompatible()) {
-						if (mergeStack.top.edgeStack.top.leftNode.getType() == MetaNodeType.MODULE_EXIT) {
-							while (mergeStack.top.edgeStack.size() == mergeStack.top.leftEdges.size()) {
-								if (mergeStack.isBaseFrame())
-									return MergeResult.SUBSUMED;
-								mergeStack.pop();
-							}
-							while (mergeStack.top.edgeStack.top.rightIndex >= mergeStack.top.rightEdges.size()) {
-								if (mergeStack.isBaseFrame())
-									return MergeResult.DISTINCT;
-								mergeStack.pop();
-							}
-							i = mergeStack.top.edgeStack.top.leftIndex;
-							mergeStack.top.pushEdgePair(i, mergeStack.top.edgeStack.top.rightIndex);
-							continue left_edges; // continue merging left edges
-						} else {
-							mergeStack.top.edgeStack.top.leftIndex = i;
-							mergeStack.top.edgeStack.top.rightIndex = j;
-							mergeStack.push(mergeStack.top.edgeStack.top.leftNode,
-									mergeStack.top.edgeStack.top.rightNode);
-							continue merge_stack;
+						switch (mergeStack.top.edgeStack.top.leftNode.getType()) {
+							case MODULE_EXIT:
+							case RETURN:
+								while (true) {
+									if (mergeStack.top.edgeStack.size() >= mergeStack.top.leftEdges.size()) {
+										if (mergeStack.isBaseFrame())
+											return MergeResult.SUBSUMED;
+										mergeStack.pop();
+										i = mergeStack.top.edgeStack.top.leftIndex;
+									} else if (mergeStack.top.edgeStack.top.rightIndex >= mergeStack.top.rightEdges
+											.size()) {
+										if (mergeStack.isBaseFrame())
+											return MergeResult.DISTINCT;
+										mergeStack.pop();
+										i = mergeStack.top.edgeStack.top.leftIndex;
+									} else {
+										j = 0;
+										while (j < mergeStack.top.rightEdges.size()
+												&& mergeStack.top.rightEdges.get(j) == null)
+											j++;
+										if (j == mergeStack.top.rightEdges.size()) {
+											if (mergeStack.isBaseFrame())
+												return MergeResult.DISTINCT;
+											mergeStack.pop();
+											i = mergeStack.top.edgeStack.top.leftIndex;
+											continue;
+										}
+										break;
+									}
+								}
+								mergeStack.top.edgeStack.top.rightIndex = j;
+								mergeStack.top.pushEdgePair(i, j);
+								continue left_edges; // continue merging left edges
+							default:
+								mergeStack.top.edgeStack.top.leftIndex = i;
+								mergeStack.top.edgeStack.top.rightIndex = j;
+								mergeStack.push(mergeStack.top.edgeStack.top.leftNode,
+										mergeStack.top.edgeStack.top.rightNode);
+								continue merge_stack;
 						}
 					} else {
 						while (j < mergeStack.top.rightEdges.size() && mergeStack.top.rightEdges.get(j) == null)
@@ -287,7 +364,8 @@ public class AnonymousGraphSetDistiller {
 							if (mergeStack.isBaseFrame())
 								return MergeResult.DISTINCT;
 							mergeStack.pop(); // edge match failed, so contrinue trying right edges
-							j = mergeStack.top.edgeStack.top.rightIndex + 1;
+							i = mergeStack.top.edgeStack.top.leftIndex;
+							j = mergeStack.top.edgeStack.top.rightIndex;
 						} else {
 							mergeStack.top.changeRightEdge(j);
 						}
@@ -393,13 +471,14 @@ public class AnonymousGraphSetDistiller {
 			AnonymousGraphSetDistiller distiller = new AnonymousGraphSetDistiller();
 			distiller.distillGraphs(graphs);
 
-			System.out.println(String.format("Unit test ended with %d graphs", graphs.size()));
+			Log.log("Unit test ended with %d graphs", graphs.size());
 		}
 	}
 
 	/* unit test */
 	public static void main(String[] args) {
 		ApplicationModuleSet.initialize(null);
+		Log.addOutput(System.out);
 
 		UnitTest test = new UnitTest();
 		test.test1();

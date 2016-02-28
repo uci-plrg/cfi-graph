@@ -82,6 +82,10 @@ public class ModuleGraphWriter implements ModuleDataWriter.ModularData {
 		dataWriter.writeMetadataHistory(graph.metadata, edgeIndexMap);
 		dataWriter.flush();
 	}
+	
+	public void close() throws IOException {
+		dataWriter.close();
+	}
 
 	@Override
 	public ApplicationModule getModule() {

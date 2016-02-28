@@ -215,10 +215,13 @@ public class ModuleDataWriter {
 
 	public void flush() throws IOException {
 		nodeStream.flush();
-		nodeStream.close();
 		edgeStream.flush();
-		edgeStream.close();
 		metaStream.flush();
+	}
+
+	public void close() throws IOException {
+		nodeStream.close();
+		edgeStream.close();
 		metaStream.close();
 	}
 }

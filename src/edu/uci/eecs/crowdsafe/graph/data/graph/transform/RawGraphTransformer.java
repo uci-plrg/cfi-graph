@@ -30,6 +30,7 @@ import edu.uci.eecs.crowdsafe.graph.data.graph.Edge;
 import edu.uci.eecs.crowdsafe.graph.data.graph.EdgeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.MetaNodeType;
 import edu.uci.eecs.crowdsafe.graph.data.graph.ModuleGraph;
+import edu.uci.eecs.crowdsafe.graph.data.graph.anonymous.AnonymousGraphSetDistiller;
 import edu.uci.eecs.crowdsafe.graph.data.graph.anonymous.ApplicationAnonymousGraphs;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ModuleInstance;
 import edu.uci.eecs.crowdsafe.graph.data.graph.execution.ProcessExecutionGraph;
@@ -755,6 +756,7 @@ public class RawGraphTransformer {
 			if (module == ApplicationModule.ANONYMOUS_MODULE) {
 				ApplicationAnonymousGraphs anonymousGraphs = new ApplicationAnonymousGraphs();
 				anonymousGraphs.inflate(graph);
+				AnonymousGraphSetDistiller.distillGraphs(anonymousGraphs);
 				AnonymousGraphWriter anonymousWriter = new AnonymousGraphWriter(anonymousGraphs);
 				graphWriters.establishModuleWriters(anonymousWriter);
 				anonymousWriter.initialize(graphWriters.dataSink);
@@ -763,6 +765,7 @@ public class RawGraphTransformer {
 			} else {
 				ModuleGraphWriter writer = new ModuleGraphWriter(graph, graphWriters.dataSink);
 				Map<Edge<ModuleNode<?>>, Integer> edgeIndexMap = writer.writeGraphBody();
+				writer.close();
 
 				// update each edge with the index at which it was written
 				for (Map.Entry<Edge<ModuleNode<?>>, Integer> edgeIndex : edgeIndexMap.entrySet()) {
