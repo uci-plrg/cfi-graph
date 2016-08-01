@@ -1,6 +1,10 @@
-package crowd_safe_data_analysis;
+package cfi_data_analysis;
 
-option java_package = "edu.uci.eecs.crowdsafe.graph.data.results";
+// to generate Java source:
+//    > cd <project-dir>
+//    > protoc --proto_path=protos --java_out=src protos/graph.proto
+
+option java_package = "edu.uci.plrg.cfi.x86.graph.data.results";
 option java_outer_classname = "Graph";
 
 message Process {

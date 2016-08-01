@@ -24,16 +24,9 @@ shift $(( $OPTIND - 1 ))
 append_classpath "CROWD_SAFE_COMMON_DIR"
 append_classpath "CROWD_SAFE_GRAPH_DIR"
 
-main_class="edu.uci.eecs.crowdsafe.graph.main.MonitorDataTransformer"
+main_class="edu.uci.plrg.cfi.x86.graph.main.MonitorDataTransformer"
 
 graph_dir=$1
-
-if [ ! -z "$quick" ]
-then
-  output_file=/stash/experiments/monitor/$(basename $(pwd))".monitor.dat"
-  graph_dir="dataset."$quick
-  echo "Quick transform "$graph_dir" into "$output_file
-fi
 
 [ -z $graph_dir ] && echo "Please specify the dataset directory." && usage && exit
 [ -z $output_file ] && usage && exit
@@ -45,7 +38,7 @@ echo "Logging to "$logfile
 
 echo "Transforming graph '"$graph_dir"' into '"$output_file"'"
 
-#echo "java -cp $cp $main_class $@"
+# echo "java -cp $cp $main_class $@"
 java -Xms512M -Xmx2048M -cp $cp $main_class -o $output_file $alarm_config_option $graph_dir &> $logfile
 
 output_dir=$(dirname $output_file)
