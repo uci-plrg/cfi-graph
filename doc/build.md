@@ -1,0 +1,1 @@
+This project currently requires the Eclipse compiler, since the standard JDK compiler has differing rules about Java generics. Simply import the project into your favorite version of Eclipse and build.
